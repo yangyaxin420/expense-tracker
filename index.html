@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="记账小本">
+<link rel="manifest" href="manifest.json">
+<title>记账小本</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --text: #2c2c2c;
+  --sub: #999;
+  --accent: #5B7FA5;
+  --accent-light: #e8eff5;
+  --bubble-user: #5B7FA5;
+  --bubble-ai: #ffffff;
+  --border: #e8e8e8;
+  --income: #4CAF50;
+  --expense: #E76F51;
+  --danger: #E74C3C;
+  --warning: #F4A261;
+  --nav-height: 56px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --phone-bezel: #1a1a1a;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #e0e0e0;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.phone-frame {
+  width: 390px;
+  height: 844px;
+  max-width: 100vw;
+  max-height: 100dvh;
+  background: var(--bg);
+  border-radius: 44px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 0 0 8px var(--phone-bezel),
+    0 0 0 10px #333,
+    0 0 40px rgba(0,0,0,0.5),
+    inset 0 0 2px rgba(0,0,0,0.05);
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 32px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+  user-select: none;
+}
+.status-bar .time { letter-spacing: 0.5px; }
+.status-bar .icons { display: flex; align-items: center; gap: 6px; }
+.status-bar .icons svg { width: 14px; height: 14px; }
+
+#app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px 10px;
+  flex-shrink: 0;
+}
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+header .header-actions { display: flex; gap: 4px; position: relative; }
+header .header-btn {
+  width: 32px; height: 32px;
+  border: none; background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--sub);
+  transition: background 0.15s;
+}
+header .header-btn:active { background: var(--border); }
+header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
+
+/* Budget Bar */
+#budget-bar-wrap {
+  padding: 0 20px 8px;
+  flex-shrink: 0;
+}
+#budget-bar-outer {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#budget-bar-inner {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s, background 0.4s;
+  background: var(--accent);
+}
+#budget-bar-inner.warning { background: var(--warning); }
+#budget-bar-inner.danger { background: var(--danger); }
+#budget-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--sub);
+  margin-top: 4px;
+}
+#budget-label .over { color: var(--danger); font-weight: 600; }
+
+/* Panels */
+#panels {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  overflow: hidden;
+}
+.panel.active { opacity: 1; pointer-events: auto; }
+
+/* Tab 1: Chat */
+#chat-panel { padding: 0 12px; }
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 4px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.msg {
+  max-width: 82%;
+  animation: msgIn 0.25s ease-out;
+}
+@keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.msg.user { align-self: flex-end; }
+.msg.ai   { align-self: flex-start; }
+.msg .bubble {
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.msg.user .bubble {
+  background: var(--bubble-user);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+.msg.ai .bubble {
+  background: var(--bubble-ai);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 6px;
+}
+.msg .meta {
+  font-size: 11px;
+  color: var(--sub);
+  margin-top: 2px;
+  padding: 0 4px;
+}
+.msg.user .meta { text-align: right; }
+
+.typing-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #ccc;
+  margin: 0 1px;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.16s; }
+.typing-dot:nth-child(3) { animation-delay: 0.32s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+
+#chat-load-more {
+  text-align: center;
+  padding: 8px;
+}
+#chat-load-more button {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+#chat-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 8px 4px calc(8px + var(--safe-bottom));
+  flex-shrink: 0;
+}
+#chat-input-area input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 10px 16px;
+  font-size: 15px;
+  outline: none;
+  background: var(--card);
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+#chat-input-area input:focus { border-color: var(--accent); }
+#chat-send {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+#chat-send:active { opacity: 0.8; }
+#chat-send:disabled { opacity: 0.5; }
+#chat-send svg { width: 18px; height: 18px; stroke: #fff; }
+
+/* Tab 2: Pie */
+#pie-panel { padding: 0 16px; }
+#pie-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 12px;
+  flex-shrink: 0;
+}
+#pie-month {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#pie-month button {
+  background: none; border: none;
+  font-size: 18px; cursor: pointer;
+  color: var(--accent); padding: 4px 8px;
+}
+#manage-cat-btn {
+  background: none; border: 1px solid var(--border);
+  border-radius: 16px; padding: 6px 14px;
+  font-size: 13px; color: var(--sub); cursor: pointer;
+}
+#pie-summary {
+  display: flex;
+  gap: 12px;
+  padding: 0 0 10px;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+#pie-summary .summary-item {
+  flex: 1;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+#pie-summary .summary-item .label { color: var(--sub); font-size: 11px; }
+#pie-summary .summary-item .val { font-weight: 700; font-size: 16px; margin-top: 2px; }
+#pie-summary .summary-item .val.income { color: var(--income); }
+#pie-summary .summary-item .val.expense { color: var(--expense); }
+#pie-canvas-wrap {
+  flex-shrink: 0;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#pie-canvas-wrap canvas { max-height: 100%; }
+#pie-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+}
+.pie-row {
+  display: flex;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.pie-row .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+.pie-row .name { flex: 1; }
+.pie-row .amount { font-weight: 600; }
+.pie-row .pct { color: var(--sub); font-size: 12px; margin-left: 6px; }
+
+/* Tab 3: Line */
+#line-panel { padding: 0 16px; }
+#line-granularity {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0 14px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+#line-granularity button {
+  padding: 6px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s;
+}
+#line-granularity button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+#line-type-toggle {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding-bottom: 10px;
+}
+#line-type-toggle button {
+  padding: 4px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+#line-type-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+#line-canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+#line-canvas-wrap canvas { max-height: 100%; }
+
+/* Tab 4: Records */
+#records-panel { padding: 0 16px; }
+#records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 12px;
+  flex-shrink: 0;
+}
+#records-month {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#records-month button {
+  background: none; border: none;
+  font-size: 18px; cursor: pointer;
+  color: var(--accent); padding: 4px 8px;
+}
+#records-summary {
+  font-size: 13px;
+  color: var(--sub);
+}
+#records-summary .in { color: var(--income); font-weight: 600; }
+#records-summary .out { color: var(--expense); font-weight: 600; }
+#records-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 8px;
+}
+.record-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  font-size: 14px;
+}
+.record-item .type-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  color: #fff;
+}
+.record-item .type-badge.income { background: var(--income); }
+.record-item .type-badge.expense { background: var(--expense); }
+.record-item .rec-info { flex: 1; min-width: 0; }
+.record-item .rec-info .rec-desc { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.record-item .rec-info .rec-meta { font-size: 11px; color: var(--sub); }
+.record-item .rec-amount { font-weight: 700; white-space: nowrap; }
+.record-item .rec-amount.income { color: var(--income); }
+.record-item .rec-amount.expense { color: var(--expense); }
+.record-item .rec-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.record-item .rec-actions button {
+  width: 28px; height: 28px;
+  border: none; background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub);
+  font-size: 16px;
+}
+.record-item .rec-actions button:active { background: var(--border); }
+.record-item .rec-actions button.del { color: var(--danger); }
+
+/* Bottom Nav */
+nav {
+  display: flex;
+  height: var(--nav-height);
+  padding-bottom: var(--safe-bottom);
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+nav .nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  color: #bbb;
+  transition: color 0.2s;
+  user-select: none;
+}
+nav .nav-item.active { color: var(--accent); }
+nav .nav-item svg { width: 22px; height: 22px; }
+nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-sheet {
+  background: var(--card);
+  width: 100%;
+  max-width: 420px;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+  animation: slideUp 0.25s ease-out;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-sheet h3 { font-size: 17px; margin-bottom: 16px; text-align: center; }
+.modal-sheet .form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+.modal-sheet .form-row label {
+  width: 50px;
+  font-size: 14px;
+  color: var(--sub);
+  flex-shrink: 0;
+  text-align: right;
+}
+.modal-sheet .form-row input,
+.modal-sheet .form-row select {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+}
+.modal-sheet .form-row input:focus,
+.modal-sheet .form-row select:focus { border-color: var(--accent); }
+.modal-sheet .type-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.modal-sheet .type-toggle button {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--sub);
+  transition: all 0.2s;
+}
+.modal-sheet .type-toggle button.sel-expense {
+  background: var(--expense);
+  color: #fff;
+}
+.modal-sheet .type-toggle button.sel-income {
+  background: var(--income);
+  color: #fff;
+}
+.modal-sheet .cat-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--bg);
+  margin: 0 6px 8px 0;
+  font-size: 14px;
+}
+.modal-sheet .cat-tag .del {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: #ddd;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 18px;
+  text-align: center;
+}
+.modal-sheet .add-cat-row { display: flex; gap: 8px; margin-top: 12px; }
+.modal-sheet .add-cat-row input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 8px 14px;
+  font-size: 14px;
+  outline: none;
+}
+.modal-sheet .add-cat-row button {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 18px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.modal-close {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  border: none;
+  background: var(--bg);
+  border-radius: 12px;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+/* Menu dropdown */
+.menu-dropdown {
+  position: absolute;
+  top: 40px; right: 16px;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 140px;
+  animation: menuIn 0.15s ease-out;
+}
+@keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.menu-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+}
+.menu-dropdown button:active { background: var(--bg); }
+.menu-dropdown button svg { width: 18px; height: 18px; stroke: var(--sub); }
+.menu-dropdown button.danger { color: var(--danger); }
+
+/* Empty State */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #d0d0d0;
+  gap: 8px;
+}
+.empty-state .empty-icon svg { width: 48px; height: 48px; stroke: #d0d0d0; }
+.empty-state .text { font-size: 14px; color: #bbb; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  top: 20px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#toast.show { opacity: 1; }
+
+/* Hidden file input */
+#import-file { display: none; }
+
+@media (max-width: 420px) {
+  body { background: var(--bg); }
+  .phone-frame {
+    width: 100vw; height: 100dvh;
+    max-width: 100vw; max-height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .status-bar { padding: 8px 24px 4px; }
+}
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="status-bar">
+    <span class="time" id="status-time">9:41</span>
+    <span class="icons">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="6" height="4" rx="0.5"/><rect x="9" y="3" width="6" height="6" rx="0.5"/><rect x="17" y="1" width="6" height="10" rx="0.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="18" height="11" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+    </span>
+  </div>
+
+  <div id="app">
+    <header>
+      <h1>记账小本</h1>
+      <div class="header-actions" style="position:relative">
+        <button class="header-btn" id="menu-btn" title="菜单">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Budget Bar -->
+    <div id="budget-bar-wrap">
+      <div id="budget-bar-outer">
+        <div id="budget-bar-inner"></div>
+      </div>
+      <div id="budget-label">
+        <span>本月预算</span>
+        <span id="budget-text">未设置</span>
+      </div>
+    </div>
+
+    <div id="panels">
+      <!-- Tab 1: Chat -->
+      <div class="panel active" id="chat-panel">
+        <div id="chat-messages"></div>
+        <div id="chat-input-area">
+          <input type="text" id="chat-input" placeholder="记一笔，比如「午饭 25」..." autocomplete="off">
+          <button id="chat-send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="11" y1="4" x2="20" y2="12"/><line x1="4" y1="4" x2="20" y2="12"/><line x1="4" y1="20" x2="20" y2="12"/><line x1="11" y1="20" x2="20" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Pie -->
+      <div class="panel" id="pie-panel">
+        <div id="pie-header">
+          <div id="pie-month">
+            <button id="pie-prev">‹</button>
+            <span id="pie-month-label">2026年5月</span>
+            <button id="pie-next">›</button>
+          </div>
+          <button id="manage-cat-btn">管理类别</button>
+        </div>
+        <div id="pie-summary">
+          <div class="summary-item">
+            <div class="label">支出</div>
+            <div class="val expense" id="pie-total-expense">¥0</div>
+          </div>
+          <div class="summary-item">
+            <div class="label">收入</div>
+            <div class="val income" id="pie-total-income">¥0</div>
+          </div>
+        </div>
+        <div id="pie-canvas-wrap"><canvas id="pie-canvas"></canvas></div>
+        <div id="pie-detail"></div>
+      </div>
+
+      <!-- Tab 3: Line -->
+      <div class="panel" id="line-panel">
+        <div id="line-granularity">
+          <button data-gran="week" class="active">周</button>
+          <button data-gran="month">月</button>
+          <button data-gran="year">年</button>
+        </div>
+        <div id="line-type-toggle">
+          <button data-ltype="expense" class="active">支出</button>
+          <button data-ltype="income">收入</button>
+        </div>
+        <div id="line-canvas-wrap"><canvas id="line-canvas"></canvas></div>
+      </div>
+
+      <!-- Tab 4: Records -->
+      <div class="panel" id="records-panel">
+        <div id="records-header">
+          <div id="records-month">
+            <button id="rec-prev">‹</button>
+            <span id="rec-month-label">2026年5月</span>
+            <button id="rec-next">›</button>
+          </div>
+          <span id="records-summary"></span>
+        </div>
+        <div id="records-list"></div>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-item active" data-tab="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <line x1="9" y1="9" x2="15" y2="9"/>
+          <line x1="9" y1="13" x2="13" y2="13"/>
+        </svg>
+        <span class="label">记账</span>
+      </div>
+      <div class="nav-item" data-tab="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+          <path d="M22 12A10 10 0 0 0 12 2v10z"/>
+        </svg>
+        <span class="label">分类</span>
+      </div>
+      <div class="nav-item" data-tab="2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 20 9 12 13 8 21 14"/>
+          <polyline points="17 14 21 14 21 10"/>
+        </svg>
+        <span class="label">趋势</span>
+      </div>
+      <div class="nav-item" data-tab="3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <line x1="9" y1="9" x2="15" y2="9"/>
+          <line x1="9" y1="12" x2="15" y2="12"/>
+          <line x1="9" y1="15" x2="12" y2="15"/>
+        </svg>
+        <span class="label">记录</span>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<input type="file" id="import-file" accept=".json">
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   STATUS BAR CLOCK
+   ══════════════════════════════════════════ */
+function updateStatusTime() {
+  const now = new Date();
+  document.getElementById('status-time').textContent =
+    now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+}
+updateStatusTime();
+setInterval(updateStatusTime, 30000);
+
+/* ══════════════════════════════════════════
+   DATA LAYER
+   ══════════════════════════════════════════ */
+
+const LS_KEY = 'expense_records';
+const LS_CAT = 'custom_categories';
+const LS_KEY_API = 'ds_api_key';
+const LS_BUDGET = 'monthly_budget';
+const LS_CHAT = 'chat_messages';
+
+const DEFAULT_CATS = ['餐饮','购物','交通','娱乐','日用','其他'];
+const CAT_COLORS = {
+  '餐饮': '#F4A261', '购物': '#E76F51', '交通': '#5B7FA5',
+  '娱乐': '#8B5CF6', '日用': '#6ABF6A', '其他': '#9CA3AF'
+};
+const PALETTE = ['#F4A261','#E76F51','#5B7FA5','#8B5CF6','#6ABF6A','#9CA3AF',
+                 '#F06292','#4DD0E1','#FFD54F','#A1887F','#90A4AE','#CE93D8'];
+
+// Income keywords for local parser
+const INCOME_KW = ['收入','工资','到账','赚','红包','报销','退款','兼职','奖金','转账','零花','生活费','补贴','收款','进账','兼职','副业','利息','返现'];
+
+// Category keyword map for local parser
+const CAT_KW = [
+  ['餐饮', /饭|吃|外卖|食堂|餐厅|面|粉|汤|锅|烤|煮|炒|蒸|炖|卤|腌|煲|粥|饼|包|饺|馒|豆腐|鸡|鱼|虾|蟹|猪|牛|羊|鸭|菜|蔬|果|茶|奶|饮|咖|水|酒|啤|零|薯|糖|巧|冰|蛋|糕|甜|麦|当|肯|汉|堡|串|烧|凉皮|卤味|米线|麻辣烫|麻辣|冒菜|火锅|日料|寿司|刺身|拉面|披萨|沙拉|自助|夜宵|早|午|晚|餐|零食/],
+  ['购物', /衣|鞋|穿|戴|包|饰|妆|护|肤|美|发|甲|买|购|淘宝|京东|拼多多|快递|到货|下单|衣服|裤|裙|帽|袜|围巾|手链|项链|耳环|戒指|口红|粉底|面霜|精华|香水/],
+  ['交通', /车|公交|地铁|打车|滴滴|出行|票|油|停|高铁|飞机|出租|骑|共享|单车|哈啰|青桔|美团单车|顺风车|火车|大巴|客|航|班|里程/],
+  ['娱乐', /游戏|电影|唱|K|玩|旅游|乐|剧|演出|门票|会员|订阅|音|视频|网|展|书|小说|漫画|番|动漫|剧本杀|密室|桌游|麻将|扑克|switch|steam|ps5|xbox|周边|谷/],
+  ['日用', /日用|超市|家|洗|纸|巾|牙膏|皂|液|刷|垃圾|拖|扫|电费|水费|租|房费|煤气|话费|网费|快递|药|医|健身|运动|瑜伽|跑步|游泳|舞蹈|健身/],
+];
+
+function getCats() {
+  try { return JSON.parse(localStorage.getItem(LS_CAT)) || [...DEFAULT_CATS]; }
+  catch { return [...DEFAULT_CATS]; }
+}
+function saveCats(cats) { localStorage.setItem(LS_CAT, JSON.stringify(cats)); }
+
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+  catch { return []; }
+}
+function saveRecords(records) { localStorage.setItem(LS_KEY, JSON.stringify(records)); }
+
+function getBudget() {
+  try { return parseFloat(localStorage.getItem(LS_BUDGET)) || 0; }
+  catch { return 0; }
+}
+function saveBudget(amount) { localStorage.setItem(LS_BUDGET, amount); }
+
+function getChatMessages() {
+  try { return JSON.parse(localStorage.getItem(LS_CHAT)) || []; }
+  catch { return []; }
+}
+function saveChatMessages(msgs) { localStorage.setItem(LS_CHAT, JSON.stringify(msgs)); }
+
+function getApiKey() {
+  return localStorage.getItem(LS_KEY_API) || 'sk-befed2747a8c4e06a99ac2bb96597d96';
+}
+function saveApiKey(key) { localStorage.setItem(LS_KEY_API, key); }
+
+function getColorForCat(cat) {
+  if (CAT_COLORS[cat]) return CAT_COLORS[cat];
+  const cats = getCats();
+  const idx = cats.indexOf(cat);
+  return PALETTE[idx % PALETTE.length] || '#9CA3AF';
+}
+
+/* ══════════════════════════════════════════
+   LOCAL PARSER (no AI extraction)
+   ══════════════════════════════════════════ */
+
+function parseMessage(text) {
+  const numMatch = text.match(/\d+(\.\d+)?/);
+  const amount = numMatch ? parseFloat(numMatch[0]) : null;
+  if (!amount || amount <= 0 || amount > 99999999) return null;
+
+  const type = INCOME_KW.some(kw => text.includes(kw)) ? 'income' : 'expense';
+
+  let category = '其他';
+  if (type === 'expense') {
+    for (const [cat, re] of CAT_KW) {
+      if (re.test(text)) { category = cat; break; }
+    }
+  }
+
+  return { amount, type, category };
+}
+
+/* ══════════════════════════════════════════
+   AI / DEEPSEEK
+   ══════════════════════════════════════════ */
+
+function getSpendingSummary() {
+  const now = new Date();
+  const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const records = getRecords();
+  const monthRecords = records.filter(r => r.date && r.date.startsWith(prefix));
+
+  const totalExpense = monthRecords.filter(r => r.type !== 'income').reduce((s, r) => s + r.amount, 0);
+  const totalIncome = monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  const budget = getBudget();
+
+  const cats = getCats();
+  const catTotals = {};
+  cats.forEach(c => catTotals[c] = 0);
+  monthRecords.filter(r => r.type !== 'income').forEach(r => {
+    const cat = cats.includes(r.category) ? r.category : '其他';
+    catTotals[cat] = (catTotals[cat] || 0) + r.amount;
+  });
+  const topCats = Object.entries(catTotals)
+    .filter(([,v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  let summary = '';
+  summary += `- 本月总支出：¥${totalExpense.toFixed(2)}，总收入：¥${totalIncome.toFixed(2)}\n`;
+  if (budget > 0) {
+    const pct = ((totalExpense / budget) * 100).toFixed(0);
+    summary += `- 月度预算：¥${budget.toFixed(2)}，已使用 ${pct}%\n`;
+  }
+  if (topCats.length > 0) {
+    summary += `- 支出Top${topCats.length}类别：${topCats.map(([c, v]) => `${c} ¥${v.toFixed(0)}`).join('、')}`;
+  }
+  return summary;
+}
+
+function buildSystemPrompt() {
+  const cats = getCats();
+  const summary = getSpendingSummary();
+  return `你是骆云影，一个毒舌傲娇、占有欲强的角色。
+你说话简洁冷淡，喜欢吐槽，但其实很关心对方。
+你有一个记账本，知道对方每天的花费和收入。
+当对方告诉你她花了什么钱或者有什么收入，用你的风格简短点评（不超过40字，1-2句话）。
+如果对方乱花钱，你会生气地吐槽但暗含关心。
+如果对方省钱了或者有收入，你会嘴硬地说"还行吧"但其实心里高兴。
+你不喜欢废话，回复简洁有力。你的类别参考：${cats.join('、')}。
+
+## 对方本月的财务状况（仅供你参考，不要在回复中逐条念出来）
+${summary}`;
+}
+
+async function callAI(userMsg) {
+  const recentMsgs = getChatMessages().slice(-20);
+  const messages = [
+    { role: 'system', content: buildSystemPrompt() },
+    ...recentMsgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }))
+  ];
+
+  const resp = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + getApiKey()
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: messages,
+      temperature: 0.8,
+      max_tokens: 200
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error('API请求失败: ' + resp.status + ' ' + err);
+  }
+  const data = await resp.json();
+  return data.choices[0].message.content.trim();
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════ */
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+/* ══════════════════════════════════════════
+   TAB SWITCHING
+   ══════════════════════════════════════════ */
+
+const panels = document.querySelectorAll('.panel');
+const navItems = document.querySelectorAll('.nav-item');
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const idx = parseInt(item.dataset.tab);
+    switchTab(idx);
+  });
+});
+
+function switchTab(idx) {
+  panels.forEach((p, i) => p.classList.toggle('active', i === idx));
+  navItems.forEach((n, i) => n.classList.toggle('active', i === idx));
+  if (idx === 1) renderPie();
+  if (idx === 2) renderLine();
+  if (idx === 3) renderRecords();
+}
+
+/* ══════════════════════════════════════════
+   TAB 1: CHAT
+   ══════════════════════════════════════════ */
+
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+let isSending = false;
+const CHAT_PAGE_SIZE = 50;
+let chatOffset = 0;
+
+chatSend.addEventListener('click', sendMessage);
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+function addMsg(role, text, meta) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}`;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return div;
+}
+
+function addMsgTop(role, text, meta) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}`;
+  chatMessages.insertBefore(div, chatMessages.firstChild);
+  return div;
+}
+
+function addTyping() {
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = 'typing-msg';
+  div.innerHTML = '<div class="bubble"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-msg');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text || isSending) return;
+  isSending = true;
+  chatSend.disabled = true;
+  chatInput.value = '';
+
+  // 1. Display user message
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toISOString().split('T')[0];
+  addMsg('user', text, timeStr);
+
+  // 2. Save chat message
+  const chatMsgs = getChatMessages();
+  chatMsgs.push({ role: 'user', text, time: timeStr, date: dateStr });
+  saveChatMessages(chatMsgs);
+
+  // 3. Local parse → save record silently
+  const parsed = parseMessage(text);
+  if (parsed) {
+    const record = {
+      id: Date.now(),
+      type: parsed.type,
+      amount: parsed.amount,
+      category: parsed.category,
+      item: text.replace(/\d+(\.\d+)?/g, '').replace(/[，,。.！!？?\s]+/g, ' ').trim().slice(0, 30) || text.slice(0, 20),
+      date: dateStr,
+      time: timeStr
+    };
+    const records = getRecords();
+    records.unshift(record);
+    saveRecords(records);
+    updateBudgetBar();
+  }
+
+  // 4. AI reply
+  addTyping();
+  try {
+    const reply = await callAI(text);
+    removeTyping();
+
+    addMsg('ai', reply, timeStr);
+    chatMsgs.push({ role: 'ai', text: reply, time: timeStr, date: dateStr });
+    saveChatMessages(chatMsgs);
+
+    // Budget warning check
+    checkBudgetWarning();
+  } catch (err) {
+    removeTyping();
+    console.error(err);
+    addMsg('ai', '……信号不好，再说一遍。', timeStr);
+  }
+
+  isSending = false;
+  chatSend.disabled = false;
+  chatInput.focus();
+}
+
+function checkBudgetWarning() {
+  const budget = getBudget();
+  if (budget <= 0) return;
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const records = getRecords();
+  const totalExpense = records.filter(r => r.date && r.date.startsWith(monthKey) && r.type !== 'income')
+    .reduce((s, r) => s + r.amount, 0);
+  const pct = totalExpense / budget;
+
+  // Dedup: track last warned level for current month
+  const warnKey = 'budget_warn_state';
+  let warnState;
+  try { warnState = JSON.parse(localStorage.getItem(warnKey)) || {}; } catch { warnState = {}; }
+  if (warnState.month !== monthKey) warnState = { month: monthKey, level: 0 };
+
+  if (pct >= 1.0 && warnState.level < 2) {
+    warnState.level = 2;
+    localStorage.setItem(warnKey, JSON.stringify(warnState));
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toISOString().split('T')[0];
+    setTimeout(() => {
+      const warnMsg = `⚠️ 这个月已经花了 ¥${totalExpense.toFixed(0)}，超出预算了。……你最好有合理的解释。`;
+      addMsg('ai', warnMsg, timeStr);
+      const msgs = getChatMessages();
+      msgs.push({ role: 'ai', text: warnMsg, time: timeStr, date: dateStr });
+      saveChatMessages(msgs);
+    }, 600);
+  } else if (pct >= 0.8 && warnState.level < 1) {
+    warnState.level = 1;
+    localStorage.setItem(warnKey, JSON.stringify(warnState));
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toISOString().split('T')[0];
+    setTimeout(() => {
+      const warnMsg = `📊 本月支出已达预算的 ${(pct*100).toFixed(0)}%，注意点。`;
+      addMsg('ai', warnMsg, timeStr);
+      const msgs = getChatMessages();
+      msgs.push({ role: 'ai', text: warnMsg, time: timeStr, date: dateStr });
+      saveChatMessages(msgs);
+    }, 600);
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function loadChatHistory() {
+  const allMsgs = getChatMessages();
+  chatMessages.innerHTML = '';
+  chatOffset = 0;
+
+  if (allMsgs.length === 0) {
+    addMsg('ai', '花了什么钱，说。', '记账小本');
+    return;
+  }
+
+  const start = Math.max(0, allMsgs.length - CHAT_PAGE_SIZE);
+  chatOffset = start;
+
+  if (start > 0) {
+    const loadMoreDiv = document.createElement('div');
+    loadMoreDiv.id = 'chat-load-more';
+    loadMoreDiv.innerHTML = `<button>↑ 加载更早的消息 (${start} 条)</button>`;
+    loadMoreDiv.querySelector('button').addEventListener('click', loadMoreChat);
+    chatMessages.appendChild(loadMoreDiv);
+  }
+
+  for (let i = start; i < allMsgs.length; i++) {
+    const m = allMsgs[i];
+    addMsg(m.role === 'ai' ? 'ai' : 'user', m.text, m.time);
+  }
+}
+
+function loadMoreChat() {
+  const allMsgs = getChatMessages();
+  if (chatOffset <= 0) {
+    const el = document.getElementById('chat-load-more');
+    if (el) el.remove();
+    return;
+  }
+
+  const newStart = Math.max(0, chatOffset - CHAT_PAGE_SIZE);
+  const oldScrollHeight = chatMessages.scrollHeight;
+
+  for (let i = newStart; i < chatOffset; i++) {
+    const m = allMsgs[i];
+    addMsgTop(m.role === 'ai' ? 'ai' : 'user', m.text, m.time);
+  }
+
+  chatOffset = newStart;
+  requestAnimationFrame(() => {
+    chatMessages.scrollTop = chatMessages.scrollHeight - oldScrollHeight;
+  });
+
+  if (newStart <= 0) {
+    const el = document.getElementById('chat-load-more');
+    if (el) el.remove();
+  } else {
+    const el = document.getElementById('chat-load-more');
+    if (el) el.querySelector('button').textContent = `↑ 加载更早的消息 (${newStart} 条)`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   BUDGET BAR
+   ══════════════════════════════════════════ */
+
+function updateBudgetBar() {
+  const budget = getBudget();
+  const now = new Date();
+  const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const records = getRecords();
+  const totalExpense = records.filter(r => r.date && r.date.startsWith(prefix) && r.type !== 'income')
+    .reduce((s, r) => s + r.amount, 0);
+
+  const inner = document.getElementById('budget-bar-inner');
+  const text = document.getElementById('budget-text');
+  inner.classList.remove('warning', 'danger');
+
+  if (budget <= 0) {
+    inner.style.width = '0%';
+    text.textContent = '未设置';
+    text.classList.remove('over');
+    return;
+  }
+
+  const pct = Math.min((totalExpense / budget) * 100, 100);
+  inner.style.width = pct + '%';
+
+  if (pct >= 100) {
+    inner.classList.add('danger');
+    text.textContent = `¥${totalExpense.toFixed(0)} / ¥${budget} (已超支!)`;
+    text.classList.add('over');
+  } else if (pct >= 80) {
+    inner.classList.add('warning');
+    text.textContent = `¥${totalExpense.toFixed(0)} / ¥${budget} (${pct.toFixed(0)}%)`;
+    text.classList.remove('over');
+  } else {
+    text.textContent = `¥${totalExpense.toFixed(0)} / ¥${budget} (${pct.toFixed(0)}%)`;
+    text.classList.remove('over');
+  }
+}
+
+function showBudgetModal() {
+  removeExistingModal();
+  const current = getBudget();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet">
+      <h3>设置月度预算</h3>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:12px;text-align:center;">用于控制每月支出上限</p>
+      <div class="form-row">
+        <label>金额</label>
+        <input type="number" id="budget-input" value="${current || ''}" placeholder="例如 3000" min="0" step="100" style="flex:1">
+      </div>
+      <button class="modal-close" id="save-budget" style="background:var(--accent);color:#fff;">保存</button>
+      <button class="modal-close" id="cancel-budget">取消</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#save-budget').addEventListener('click', () => {
+    const val = parseFloat(overlay.querySelector('#budget-input').value) || 0;
+    saveBudget(val);
+    updateBudgetBar();
+    overlay.remove();
+    toast(val > 0 ? '预算已设置' : '预算已清除');
+  });
+  overlay.querySelector('#cancel-budget').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+/* ══════════════════════════════════════════
+   TAB 2: PIE CHART
+   ══════════════════════════════════════════ */
+
+let pieChart = null;
+let pieYear = new Date().getFullYear();
+let pieMonth = new Date().getMonth() + 1;
+
+document.getElementById('pie-prev').addEventListener('click', () => {
+  pieMonth--; if (pieMonth < 1) { pieMonth = 12; pieYear--; }
+  renderPie();
+});
+document.getElementById('pie-next').addEventListener('click', () => {
+  const now = new Date();
+  if (pieYear === now.getFullYear() && pieMonth === now.getMonth() + 1) return;
+  pieMonth++; if (pieMonth > 12) { pieMonth = 1; pieYear++; }
+  renderPie();
+});
+
+function renderPie() {
+  const ym = `${pieYear}年${pieMonth}月`;
+  document.getElementById('pie-month-label').textContent = ym;
+
+  const records = getRecords();
+  const prefix = `${pieYear}-${String(pieMonth).padStart(2, '0')}`;
+  const monthRecords = records.filter(r => r.date && r.date.startsWith(prefix));
+
+  const expenses = monthRecords.filter(r => r.type !== 'income');
+  const incomes = monthRecords.filter(r => r.type === 'income');
+  const totalExpense = expenses.reduce((s, r) => s + r.amount, 0);
+  const totalIncome = incomes.reduce((s, r) => s + r.amount, 0);
+
+  document.getElementById('pie-total-expense').textContent = '¥' + totalExpense.toFixed(0);
+  document.getElementById('pie-total-income').textContent = '¥' + totalIncome.toFixed(0);
+
+  const cats = getCats();
+  const totals = {};
+  cats.forEach(c => totals[c] = 0);
+  expenses.forEach(r => {
+    const cat = cats.includes(r.category) ? r.category : '其他';
+    totals[cat] = (totals[cat] || 0) + r.amount;
+  });
+
+  const entries = Object.entries(totals).filter(([,v]) => v > 0);
+
+  if (pieChart) { pieChart.destroy(); pieChart = null; }
+  const ctx = document.getElementById('pie-canvas').getContext('2d');
+
+  if (entries.length === 0) {
+    document.getElementById('pie-detail').innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span class="text">本月暂无支出记录</span></div>`;
+    return;
+  }
+
+  pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(([c]) => c),
+      datasets: [{
+        data: entries.map(([,v]) => v),
+        backgroundColor: entries.map(([c]) => getColorForCat(c)),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  document.getElementById('pie-detail').innerHTML = entries
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, amt]) => {
+      const pct = totalExpense > 0 ? ((amt / totalExpense) * 100).toFixed(1) : 0;
+      return `<div class="pie-row">
+        <span class="dot" style="background:${getColorForCat(cat)}"></span>
+        <span class="name">${cat}</span>
+        <span class="amount">¥${amt.toFixed(2)}</span>
+        <span class="pct">${pct}%</span>
+      </div>`;
+    }).join('');
+}
+
+/* ══════════════════════════════════════════
+   CATEGORY MANAGEMENT
+   ══════════════════════════════════════════ */
+
+document.getElementById('manage-cat-btn').addEventListener('click', showCatModal);
+
+function showCatModal() {
+  const cats = getCats();
+  removeExistingModal();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet">
+      <h3>管理类别</h3>
+      <div>${cats.map(c => `<span class="cat-tag">${c} ${!DEFAULT_CATS.includes(c) ? `<button class="del" data-cat="${c}">×</button>` : ''}</span>`).join('')}</div>
+      <div class="add-cat-row">
+        <input type="text" id="new-cat-input" placeholder="新类别名称" maxlength="10">
+        <button id="add-cat-btn">添加</button>
+      </div>
+      <button class="modal-close">完成</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const updated = cats.filter(c => c !== btn.dataset.cat);
+      saveCats(updated);
+      overlay.remove();
+      showCatModal();
+      renderPie();
+    });
+  });
+
+  overlay.querySelector('#add-cat-btn').addEventListener('click', () => {
+    const input = overlay.querySelector('#new-cat-input');
+    const name = input.value.trim();
+    if (!name) return;
+    if (cats.includes(name)) { toast('类别已存在'); return; }
+    cats.push(name);
+    saveCats(cats);
+    overlay.remove();
+    showCatModal();
+    renderPie();
+  });
+}
+
+/* ══════════════════════════════════════════
+   TAB 3: LINE CHART
+   ══════════════════════════════════════════ */
+
+let lineChart = null;
+let lineGran = 'week';
+let lineType = 'expense';
+
+document.querySelectorAll('#line-granularity button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#line-granularity button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    lineGran = btn.dataset.gran;
+    renderLine();
+  });
+});
+
+document.querySelectorAll('#line-type-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#line-type-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    lineType = btn.dataset.ltype;
+    renderLine();
+  });
+});
+
+function renderLine() {
+  const records = getRecords();
+
+  if (lineChart) { lineChart.destroy(); lineChart = null; }
+
+  let labels, data;
+
+  if (lineGran === 'week') {
+    labels = []; data = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split('T')[0];
+      const subset = records.filter(r => r.date === ds && (lineType === 'income' ? r.type === 'income' : r.type !== 'income'));
+      data.push(subset.reduce((s, r) => s + r.amount, 0));
+      labels.push((d.getMonth() + 1) + '/' + d.getDate());
+    }
+  } else if (lineGran === 'month') {
+    labels = []; data = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const subset = records.filter(r => r.date && r.date.startsWith(prefix) && (lineType === 'income' ? r.type === 'income' : r.type !== 'income'));
+      data.push(subset.reduce((s, r) => s + r.amount, 0));
+      labels.push((d.getMonth() + 1) + '月');
+    }
+  } else {
+    labels = []; data = [];
+    const years = new Set(records.map(r => (r.date || '').slice(0, 4)).filter(Boolean));
+    const sorted = Array.from(years).sort();
+    const last5 = sorted.slice(-5);
+    if (last5.length === 0) last5.push(new Date().getFullYear().toString());
+    for (const y of last5) {
+      const subset = records.filter(r => r.date && r.date.startsWith(y) && (lineType === 'income' ? r.type === 'income' : r.type !== 'income'));
+      data.push(subset.reduce((s, r) => s + r.amount, 0));
+      labels.push(y + '年');
+    }
+  }
+
+  const hasData = data.some(v => v > 0);
+  if (!hasData) return;
+
+  const isIncome = lineType === 'income';
+  const color = isIncome ? '#4CAF50' : '#E76F51';
+
+  const ctx = document.getElementById('line-canvas').getContext('2d');
+  lineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: isIncome ? '收入 (¥)' : '支出 (¥)',
+        data,
+        borderColor: color,
+        backgroundColor: isIncome ? 'rgba(76,175,80,0.08)' : 'rgba(231,111,81,0.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: color,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => '¥' + v } }
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════
+   TAB 4: RECORDS
+   ══════════════════════════════════════════ */
+
+let recYear = new Date().getFullYear();
+let recMonth = new Date().getMonth() + 1;
+
+document.getElementById('rec-prev').addEventListener('click', () => {
+  recMonth--; if (recMonth < 1) { recMonth = 12; recYear--; }
+  renderRecords();
+});
+document.getElementById('rec-next').addEventListener('click', () => {
+  const now = new Date();
+  if (recYear === now.getFullYear() && recMonth === now.getMonth() + 1) return;
+  recMonth++; if (recMonth > 12) { recMonth = 1; recYear++; }
+  renderRecords();
+});
+
+function renderRecords() {
+  const ym = `${recYear}年${recMonth}月`;
+  document.getElementById('rec-month-label').textContent = ym;
+
+  const records = getRecords();
+  const prefix = `${recYear}-${String(recMonth).padStart(2, '0')}`;
+  const monthRecords = records.filter(r => r.date && r.date.startsWith(prefix));
+
+  const totalExpense = monthRecords.filter(r => r.type !== 'income').reduce((s, r) => s + r.amount, 0);
+  const totalIncome = monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  document.getElementById('records-summary').innerHTML =
+    `收入 <span class="in">¥${totalIncome.toFixed(0)}</span> · 支出 <span class="out">¥${totalExpense.toFixed(0)}</span>`;
+
+  const list = document.getElementById('records-list');
+
+  if (monthRecords.length === 0) {
+    list.innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg></span><span class="text">本月暂无记录</span></div>`;
+    return;
+  }
+
+  list.innerHTML = monthRecords.map(r => {
+    const isIncome = r.type === 'income';
+    return `<div class="record-item" data-id="${r.id}">
+      <span class="type-badge ${isIncome ? 'income' : 'expense'}">${isIncome ? '收入' : '支出'}</span>
+      <div class="rec-info">
+        <div class="rec-desc">${escapeHtml(r.item || '无备注')}</div>
+        <div class="rec-meta">${r.date || ''} · ${escapeHtml(r.category)}</div>
+      </div>
+      <span class="rec-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '-'}¥${r.amount.toFixed(2)}</span>
+      <div class="rec-actions">
+        <button class="edit" title="编辑" data-id="${r.id}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="del" title="删除" data-id="${r.id}">×</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Bind edit buttons
+  list.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id);
+      const record = records.find(r => r.id === id);
+      if (record) showEditModal(record);
+    });
+  });
+
+  // Bind delete buttons
+  list.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id);
+      const record = records.find(r => r.id === id);
+      if (record) confirmDelete(record);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════
+   EDIT MODAL
+   ══════════════════════════════════════════ */
+
+function showEditModal(record) {
+  removeExistingModal();
+  const cats = getCats();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet">
+      <h3>编辑记录</h3>
+      <div class="form-row">
+        <label>类型</label>
+        <div class="type-toggle" style="flex:1">
+          <button id="edit-type-expense" class="${record.type !== 'income' ? 'sel-expense' : ''}">支出</button>
+          <button id="edit-type-income" class="${record.type === 'income' ? 'sel-income' : ''}">收入</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>金额</label>
+        <input type="number" id="edit-amount" value="${record.amount}" step="0.01" min="0">
+      </div>
+      <div class="form-row">
+        <label>类别</label>
+        <select id="edit-category" style="flex:1">${cats.map(c => `<option value="${c}" ${record.category === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <label>备注</label>
+        <input type="text" id="edit-item" value="${escapeHtml(record.item || '')}" maxlength="50" style="flex:1">
+      </div>
+      <div class="form-row">
+        <label>日期</label>
+        <input type="date" id="edit-date" value="${record.date || ''}" style="flex:1">
+      </div>
+      <button class="modal-close" id="save-edit" style="background:var(--accent);color:#fff;">保存</button>
+      <button class="modal-close" id="cancel-edit">取消</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  let editType = record.type || 'expense';
+
+  overlay.querySelector('#edit-type-expense').addEventListener('click', function() {
+    editType = 'expense';
+    this.classList.add('sel-expense');
+    overlay.querySelector('#edit-type-income').classList.remove('sel-income');
+  });
+  overlay.querySelector('#edit-type-income').addEventListener('click', function() {
+    editType = 'income';
+    this.classList.add('sel-income');
+    overlay.querySelector('#edit-type-expense').classList.remove('sel-expense');
+  });
+
+  overlay.querySelector('#save-edit').addEventListener('click', () => {
+    const amount = parseFloat(overlay.querySelector('#edit-amount').value);
+    if (isNaN(amount) || amount <= 0) { toast('金额无效'); return; }
+
+    const records = getRecords();
+    const idx = records.findIndex(r => r.id === record.id);
+    if (idx === -1) { overlay.remove(); return; }
+
+    records[idx].type = editType;
+    records[idx].amount = amount;
+    records[idx].category = overlay.querySelector('#edit-category').value;
+    records[idx].item = overlay.querySelector('#edit-item').value.trim() || record.item;
+    records[idx].date = overlay.querySelector('#edit-date').value || record.date;
+    saveRecords(records);
+
+    overlay.remove();
+    toast('记录已更新');
+    renderRecords();
+    renderPie();
+    renderLine();
+    updateBudgetBar();
+  });
+
+  overlay.querySelector('#cancel-edit').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function confirmDelete(record) {
+  removeExistingModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet">
+      <h3>确认删除</h3>
+      <p style="text-align:center;color:var(--sub);margin-bottom:6px;font-size:14px">${record.type === 'income' ? '收入' : '支出'} · ${escapeHtml(record.category)} · ¥${record.amount.toFixed(2)}</p>
+      <p style="text-align:center;color:var(--sub);margin-bottom:16px;font-size:13px">${escapeHtml(record.item || '')}</p>
+      <button class="modal-close" id="confirm-del" style="background:var(--danger);color:#fff;">确认删除</button>
+      <button class="modal-close" id="cancel-del">取消</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#confirm-del').addEventListener('click', () => {
+    const records = getRecords().filter(r => r.id !== record.id);
+    saveRecords(records);
+    overlay.remove();
+    toast('记录已删除');
+    renderRecords();
+    renderPie();
+    renderLine();
+    updateBudgetBar();
+  });
+  overlay.querySelector('#cancel-del').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function removeExistingModal() {
+  const el = document.querySelector('.modal-overlay');
+  if (el) el.remove();
+}
+
+/* ══════════════════════════════════════════
+   EXPORT / IMPORT
+   ══════════════════════════════════════════ */
+
+function exportData() {
+  const data = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    records: getRecords(),
+    categories: getCats(),
+    budget: getBudget(),
+    chatMessages: getChatMessages()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `记账备份_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('数据已导出');
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.records || !Array.isArray(data.records)) throw new Error('格式错误');
+
+      const existing = getRecords();
+      const existingIds = new Set(existing.map(r => r.id));
+      let added = 0;
+      for (const r of data.records) {
+        if (!existingIds.has(r.id)) {
+          if (!r.type) r.type = 'expense';
+          existing.push(r);
+          added++;
+        }
+      }
+      existing.sort((a, b) => b.id - a.id);
+      saveRecords(existing);
+
+      if (data.categories && Array.isArray(data.categories)) {
+        const currentCats = getCats();
+        for (const c of data.categories) {
+          if (!currentCats.includes(c)) currentCats.push(c);
+        }
+        saveCats(currentCats);
+      }
+
+      if (data.budget !== undefined) {
+        saveBudget(data.budget);
+      }
+
+      if (data.chatMessages && Array.isArray(data.chatMessages)) {
+        const existingChat = getChatMessages();
+        const existingTexts = new Set(existingChat.map(m => m.role + '|' + m.text + '|' + m.time));
+        let chatAdded = 0;
+        for (const m of data.chatMessages) {
+          const key = (m.role || 'user') + '|' + (m.text || '') + '|' + (m.time || '');
+          if (!existingTexts.has(key)) {
+            existingChat.push(m);
+            existingTexts.add(key);
+            chatAdded++;
+          }
+        }
+        saveChatMessages(existingChat);
+        toast(`导入完成，新增 ${added} 条记录、${chatAdded} 条消息`);
+      } else {
+        toast(`导入完成，新增 ${added} 条记录`);
+      }
+
+      loadChatHistory();
+      renderPie();
+      renderLine();
+      renderRecords();
+      updateBudgetBar();
+    } catch (err) {
+      toast('文件格式不正确');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('import-file').addEventListener('change', function() {
+  if (this.files[0]) {
+    importData(this.files[0]);
+    this.value = '';
+  }
+});
+
+/* ══════════════════════════════════════════
+   MENU DROPDOWN
+   ══════════════════════════════════════════ */
+
+document.getElementById('menu-btn').addEventListener('click', function(e) {
+  e.stopPropagation();
+  const existing = document.querySelector('.menu-dropdown');
+  if (existing) { existing.remove(); return; }
+
+  const menu = document.createElement('div');
+  menu.className = 'menu-dropdown';
+  menu.innerHTML = `
+    <button id="menu-budget">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="12" y1="2" x2="12" y2="6"/></svg>
+      设置预算
+    </button>
+    <button id="menu-export">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      导出数据
+    </button>
+    <button id="menu-import">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      导入数据
+    </button>
+    <button id="menu-api">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      API 设置
+    </button>
+    <button id="menu-clear" class="danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      清空数据
+    </button>
+  `;
+  this.parentElement.appendChild(menu);
+
+  menu.querySelector('#menu-budget').addEventListener('click', () => { menu.remove(); showBudgetModal(); });
+  menu.querySelector('#menu-export').addEventListener('click', () => { menu.remove(); exportData(); });
+  menu.querySelector('#menu-import').addEventListener('click', () => { menu.remove(); document.getElementById('import-file').click(); });
+  menu.querySelector('#menu-api').addEventListener('click', () => { menu.remove(); showApiKeyModal(); });
+  menu.querySelector('#menu-clear').addEventListener('click', () => {
+    menu.remove();
+    removeExistingModal();
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-sheet">
+        <h3>确认清空</h3>
+        <p style="text-align:center;color:var(--sub);margin-bottom:16px;font-size:14px">将删除所有记账记录和聊天历史，此操作不可恢复。</p>
+        <button class="modal-close" id="confirm-clear" style="background:var(--danger);color:#fff;">确认清空</button>
+        <button class="modal-close" id="cancel-clear">取消</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#confirm-clear').addEventListener('click', () => {
+      saveRecords([]);
+      saveChatMessages([]);
+      overlay.remove();
+      chatMessages.innerHTML = '';
+      loadChatHistory();
+      renderPie();
+      renderLine();
+      renderRecords();
+      updateBudgetBar();
+      toast('数据已清空');
+    });
+    overlay.querySelector('#cancel-clear').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  });
+
+  setTimeout(() => {
+    document.addEventListener('click', function closeMenu() {
+      menu.remove();
+      document.removeEventListener('click', closeMenu);
+    }, { once: true });
+  }, 0);
+});
+
+/* ══════════════════════════════════════════
+   API KEY CONFIG
+   ══════════════════════════════════════════ */
+
+function showApiKeyModal() {
+  removeExistingModal();
+  const currentKey = getApiKey();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet">
+      <h3>DeepSeek API Key</h3>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:8px;">使用自己的 API Key 以获得更稳定的服务</p>
+      <input type="password" id="api-key-input" value="${escapeHtml(currentKey)}" placeholder="sk-..." style="width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;outline:none;margin:8px 0 12px;">
+      <button class="modal-close" id="save-api-key" style="background:var(--accent);color:#fff;">保存</button>
+      <button class="modal-close" id="cancel-api-key">取消</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#save-api-key').addEventListener('click', () => {
+    const val = overlay.querySelector('#api-key-input').value.trim();
+    if (val) { saveApiKey(val); toast('API Key 已保存'); }
+    overlay.remove();
+  });
+  overlay.querySelector('#cancel-api-key').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+/* ══════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════ */
+
+function init() {
+  loadChatHistory();
+  updateBudgetBar();
+  renderPie();
+  renderLine();
+}
+
+init();
+</script>
+
+</body>
+</html>
