@@ -19,7 +19,6 @@
   --text: #2c2c2c;
   --sub: #999;
   --accent: #5B7FA5;
-  --accent-light: #e8eff5;
   --bubble-user: #5B7FA5;
   --bubble-ai: #ffffff;
   --border: #e8e8e8;
@@ -341,53 +340,20 @@ header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
 .pie-row .amount { font-weight: 600; }
 .pie-row .pct { color: var(--sub); font-size: 12px; margin-left: 6px; }
 
-/* Tab 3: Line */
-#line-panel { padding: 0 16px; }
-#line-granularity {
-  display: flex;
-  gap: 6px;
-  padding: 4px 0 14px;
-  flex-shrink: 0;
-  justify-content: center;
+/* Tab 2-3: Toggle buttons */
+.toggle-group { display: flex; gap: 6px; justify-content: center; flex-shrink: 0; }
+.toggle-group button {
+  border: 1px solid var(--border); background: var(--card); cursor: pointer;
+  color: var(--text); transition: all 0.2s;
 }
-#line-granularity button {
-  padding: 6px 20px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--text);
-  transition: all 0.2s;
-}
-#line-granularity button.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-#line-type-toggle {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-  padding-bottom: 10px;
-}
-#line-type-toggle button {
-  padding: 4px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--text);
-}
-#line-type-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-#line-canvas-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-}
+.toggle-group button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+#line-granularity { padding: 4px 0 14px; }
+#line-granularity button { padding: 6px 20px; border-radius: 16px; font-size: 14px; }
+#line-type-toggle { padding-bottom: 10px; }
+#line-type-toggle button, #pie-type-toggle button { padding: 4px 16px; border-radius: 12px; font-size: 13px; }
+#pie-type-toggle { padding: 0 0 10px; }
+#line-canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
 #line-canvas-wrap canvas { max-height: 100%; }
 
 /* Tab 4: Records */
@@ -759,18 +725,22 @@ nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
             <div class="val income" id="pie-total-income">¥0</div>
           </div>
         </div>
+        <div id="pie-type-toggle" class="toggle-group">
+          <button data-ptype="expense" class="active">支出</button>
+          <button data-ptype="income">收入</button>
+        </div>
         <div id="pie-canvas-wrap"><canvas id="pie-canvas"></canvas></div>
         <div id="pie-detail"></div>
       </div>
 
       <!-- Tab 3: Line -->
       <div class="panel" id="line-panel">
-        <div id="line-granularity">
+        <div id="line-granularity" class="toggle-group">
           <button data-gran="week" class="active">周</button>
           <button data-gran="month">月</button>
           <button data-gran="year">年</button>
         </div>
-        <div id="line-type-toggle">
+        <div id="line-type-toggle" class="toggle-group">
           <button data-ltype="expense" class="active">支出</button>
           <button data-ltype="income">收入</button>
         </div>
@@ -846,60 +816,45 @@ setInterval(updateStatusTime, 30000);
    DATA LAYER
    ══════════════════════════════════════════ */
 
-const LS_KEY = 'expense_records';
-const LS_CAT = 'custom_categories';
-const LS_KEY_API = 'ds_api_key';
-const LS_BUDGET = 'monthly_budget';
-const LS_CHAT = 'chat_messages';
+const LS = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const LSset = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
-const DEFAULT_CATS = ['餐饮','购物','交通','娱乐','日用','其他'];
+const NOW = () => new Date();
+const fmtDate = d => d.toISOString().split('T')[0];
+const fmtTime = d => d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+const monthPrefix = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+const DEFAULT_CATS = ['餐饮','购物','交通','娱乐','日用','零食','水果','其他'];
+const DEFAULT_INCOME_CATS = ['工资','红包','兼职','生活费','报销','其他收入'];
 const CAT_COLORS = {
   '餐饮': '#F4A261', '购物': '#E76F51', '交通': '#5B7FA5',
-  '娱乐': '#8B5CF6', '日用': '#6ABF6A', '其他': '#9CA3AF'
+  '娱乐': '#8B5CF6', '日用': '#6ABF6A', '零食': '#F06292', '水果': '#4DD0E1', '其他': '#9CA3AF',
+  '工资': '#4CAF50', '红包': '#E74C3C', '兼职': '#FFD54F', '生活费': '#5B7FA5', '报销': '#A1887F', '其他收入': '#90A4AE'
 };
-const PALETTE = ['#F4A261','#E76F51','#5B7FA5','#8B5CF6','#6ABF6A','#9CA3AF',
-                 '#F06292','#4DD0E1','#FFD54F','#A1887F','#90A4AE','#CE93D8'];
+const PALETTE = ['#F4A261','#E76F51','#5B7FA5','#8B5CF6','#6ABF6A','#F06292','#4DD0E1','#9CA3AF','#FFD54F','#A1887F','#90A4AE','#CE93D8','#4CAF50','#E74C3C'];
 
-// Income keywords for local parser
-const INCOME_KW = ['收入','工资','到账','赚','红包','报销','退款','兼职','奖金','转账','零花','生活费','补贴','收款','进账','兼职','副业','利息','返现'];
+const INCOME_KW = ['收入','工资','到账','赚','红包','报销','退款','兼职','奖金','转账','零花','生活费','补贴','收款','进账','副业','利息','返现'];
 
-// Category keyword map for local parser
 const CAT_KW = [
-  ['餐饮', /饭|吃|外卖|食堂|餐厅|面|粉|汤|锅|烤|煮|炒|蒸|炖|卤|腌|煲|粥|饼|包|饺|馒|豆腐|鸡|鱼|虾|蟹|猪|牛|羊|鸭|菜|蔬|果|茶|奶|饮|咖|水|酒|啤|零|薯|糖|巧|冰|蛋|糕|甜|麦|当|肯|汉|堡|串|烧|凉皮|卤味|米线|麻辣烫|麻辣|冒菜|火锅|日料|寿司|刺身|拉面|披萨|沙拉|自助|夜宵|早|午|晚|餐|零食/],
-  ['购物', /衣|鞋|穿|戴|包|饰|妆|护|肤|美|发|甲|买|购|淘宝|京东|拼多多|快递|到货|下单|衣服|裤|裙|帽|袜|围巾|手链|项链|耳环|戒指|口红|粉底|面霜|精华|香水/],
-  ['交通', /车|公交|地铁|打车|滴滴|出行|票|油|停|高铁|飞机|出租|骑|共享|单车|哈啰|青桔|美团单车|顺风车|火车|大巴|客|航|班|里程/],
-  ['娱乐', /游戏|电影|唱|K|玩|旅游|乐|剧|演出|门票|会员|订阅|音|视频|网|展|书|小说|漫画|番|动漫|剧本杀|密室|桌游|麻将|扑克|switch|steam|ps5|xbox|周边|谷/],
-  ['日用', /日用|超市|家|洗|纸|巾|牙膏|皂|液|刷|垃圾|拖|扫|电费|水费|租|房费|煤气|话费|网费|快递|药|医|健身|运动|瑜伽|跑步|游泳|舞蹈|健身/],
+  ['零食', /零食|薯片|薯条|虾条|锅巴|辣条|糖果|巧克力|饼干|蛋糕|面包|甜点|布丁|果冻|冰淇淋|冰棍|雪糕|棒棒糖|口香糖|坚果|瓜子|花生|腰果|杏仁|核桃|肉干|牛肉干|猪肉脯|鱿鱼丝|海苔|爆米花|膨化|麻薯|蛋黄酥|凤梨酥|绿豆糕|曲奇|威化|泡芙|蛋挞|甜甜圈|奶茶|奶盖|果茶|气泡水|可乐|雪碧|芬达|汽水|功能饮料|酸奶|AD钙|养乐多|鸭脖|鸭舌|卤味小|周黑鸭|绝味|良品铺子|三只松鼠|来伊份|百草味/],
+  ['水果', /水果|苹果|香蕉|橘子|橙子|柚子|葡萄|草莓|蓝莓|芒果|西瓜|哈密瓜|蜜瓜|菠萝|榴莲|樱桃|桃子|李子|杏|梨|猕猴桃|火龙果|荔枝|龙眼|山竹|枇杷|杨梅|桑葚|柿子|石榴|甘蔗|柠檬|百香果|车厘子|提子|金桔/],
+  ['餐饮', /饭|吃|外卖|食堂|餐厅|午饭|晚饭|早饭|早餐|午餐|晚餐|夜宵|面|粉|汤|锅|烤|煮|炒|蒸|炖|卤|腌|煲|粥|饼|包|饺|馒|豆腐|鸡|鱼|虾|蟹|猪|牛|羊|鸭|米线|麻辣烫|麻辣|冒菜|火锅|日料|寿司|刺身|拉面|披萨|沙拉|自助|凉皮|卤味饭|盖浇|盖饭|便当|盒饭|烧烤|串串|香锅|凉菜|热菜|套餐|快餐/],
+  ['购物', /衣|鞋|穿|戴|包|饰|妆|护|肤|美|发|甲|买|购|淘宝|京东|拼多多|快递|到货|下单|衣服|裤|裙|帽|袜|围巾|手链|项链|耳环|戒指|口红|粉底|面霜|精华|香水|眼影|腮红|眉笔|bb霜|cc霜|隔离|卸妆|洗面奶|水乳/],
+  ['交通', /车|公交|地铁|打车|滴滴|出行|票|油|停|高铁|飞机|出租|骑|共享|单车|哈啰|青桔|美团单车|顺风车|火车|大巴|客|航|班|里程|加油|充电|停车费|过路费|高速/],
+  ['娱乐', /游戏|电影|唱|K|玩|旅游|乐|剧|演出|门票|会员|订阅|音|视频|网|展|书|小说|漫画|番|动漫|剧本杀|密室|桌游|麻将|扑克|switch|steam|ps5|xbox|周边|谷|盲盒|手办|k歌|ktv|桌球|台球|保龄球|溜冰|滑雪|攀岩|蹦床|游乐|乐园|景区/],
+  ['日用', /日用|超市|家|洗|纸|巾|牙膏|皂|液|刷|垃圾|拖|扫|电费|水费|租|房费|煤气|话费|网费|药|医|健身|运动|瑜伽|跑步|游泳|舞蹈|洗发|沐浴|洗衣|洗洁精|抹布|扫帚|拖把|垃圾袋|保鲜|厨房纸|抽纸|卷纸|湿巾|卫生巾|护垫|棉条|口罩|消毒|酒精|棉签|创可贴|感冒|头疼|发烧|体温|维生素|钙片|鱼油|保健品/],
 ];
 
-function getCats() {
-  try { return JSON.parse(localStorage.getItem(LS_CAT)) || [...DEFAULT_CATS]; }
-  catch { return [...DEFAULT_CATS]; }
-}
-function saveCats(cats) { localStorage.setItem(LS_CAT, JSON.stringify(cats)); }
-
-function getRecords() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
-  catch { return []; }
-}
-function saveRecords(records) { localStorage.setItem(LS_KEY, JSON.stringify(records)); }
-
-function getBudget() {
-  try { return parseFloat(localStorage.getItem(LS_BUDGET)) || 0; }
-  catch { return 0; }
-}
-function saveBudget(amount) { localStorage.setItem(LS_BUDGET, amount); }
-
-function getChatMessages() {
-  try { return JSON.parse(localStorage.getItem(LS_CHAT)) || []; }
-  catch { return []; }
-}
-function saveChatMessages(msgs) { localStorage.setItem(LS_CHAT, JSON.stringify(msgs)); }
-
-function getApiKey() {
-  return localStorage.getItem(LS_KEY_API) || 'sk-befed2747a8c4e06a99ac2bb96597d96';
-}
-function saveApiKey(key) { localStorage.setItem(LS_KEY_API, key); }
+function getCats() { return LS('custom_categories', [...DEFAULT_CATS]); }
+function saveCats(v) { LSset('custom_categories', v); }
+function getRecords() { return LS('expense_records', []); }
+function saveRecords(v) { LSset('expense_records', v); }
+function getBudget() { const v = localStorage.getItem('monthly_budget'); return v ? parseFloat(v) || 0 : 0; }
+function saveBudget(v) { localStorage.setItem('monthly_budget', v); }
+function getChatMessages() { return LS('chat_messages', []); }
+function saveChatMessages(v) { LSset('chat_messages', v); }
+function getApiKey() { return localStorage.getItem('ds_api_key') || 'sk-befed2747a8c4e06a99ac2bb96597d96'; }
+function saveApiKey(k) { localStorage.setItem('ds_api_key', k); }
 
 function getColorForCat(cat) {
   if (CAT_COLORS[cat]) return CAT_COLORS[cat];
@@ -920,7 +875,20 @@ function parseMessage(text) {
   const type = INCOME_KW.some(kw => text.includes(kw)) ? 'income' : 'expense';
 
   let category = '其他';
-  if (type === 'expense') {
+  if (type === 'income') {
+    // Income category matching
+    const INC_KW_MAP = [
+      ['工资', /工资|薪水|月薪|发工资/],
+      ['红包', /红包|礼金|份子|压岁|彩礼|聘礼/],
+      ['兼职', /兼职|副业|接单|外包|稿费|版税|打赏/],
+      ['生活费', /生活费|零花|补贴|家里给|父母给|妈妈给|爸爸给/],
+      ['报销', /报销|退款|返现|退费|赔付/],
+    ];
+    for (const [cat, re] of INC_KW_MAP) {
+      if (re.test(text)) { category = cat; break; }
+    }
+    if (category === '其他') category = '其他收入';
+  } else {
     for (const [cat, re] of CAT_KW) {
       if (re.test(text)) { category = cat; break; }
     }
@@ -933,50 +901,66 @@ function parseMessage(text) {
    AI / DEEPSEEK
    ══════════════════════════════════════════ */
 
-function getSpendingSummary() {
-  const now = new Date();
-  const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const records = getRecords();
-  const monthRecords = records.filter(r => r.date && r.date.startsWith(prefix));
-
-  const totalExpense = monthRecords.filter(r => r.type !== 'income').reduce((s, r) => s + r.amount, 0);
-  const totalIncome = monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
-  const budget = getBudget();
+function getMonthStats() {
+  const now = NOW();
+  const prefix = monthPrefix(now);
+  const records = getRecords().filter(r => r.date && r.date.startsWith(prefix));
+  const expenses = records.filter(r => r.type !== 'income');
+  const incomes = records.filter(r => r.type === 'income');
+  const totalExpense = expenses.reduce((s, r) => s + r.amount, 0);
+  const totalIncome = incomes.reduce((s, r) => s + r.amount, 0);
 
   const cats = getCats();
-  const catTotals = {};
-  cats.forEach(c => catTotals[c] = 0);
-  monthRecords.filter(r => r.type !== 'income').forEach(r => {
+  const catTotals = {}, catCounts = {};
+  cats.forEach(c => { catTotals[c] = 0; catCounts[c] = 0; });
+  expenses.forEach(r => {
     const cat = cats.includes(r.category) ? r.category : '其他';
     catTotals[cat] = (catTotals[cat] || 0) + r.amount;
+    catCounts[cat] = (catCounts[cat] || 0) + 1;
   });
-  const topCats = Object.entries(catTotals)
-    .filter(([,v]) => v > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  let summary = '';
-  summary += `- 本月总支出：¥${totalExpense.toFixed(2)}，总收入：¥${totalIncome.toFixed(2)}\n`;
-  if (budget > 0) {
-    const pct = ((totalExpense / budget) * 100).toFixed(0);
-    summary += `- 月度预算：¥${budget.toFixed(2)}，已使用 ${pct}%\n`;
-  }
-  if (topCats.length > 0) {
-    summary += `- 支出Top${topCats.length}类别：${topCats.map(([c, v]) => `${c} ¥${v.toFixed(0)}`).join('、')}`;
-  }
-  return summary;
+  return { totalExpense, totalIncome, catTotals, catCounts, recordCount: records.length, expenses, incomes };
 }
 
 function buildSystemPrompt() {
+  const s = getMonthStats();
   const cats = getCats();
-  const summary = getSpendingSummary();
-  return `你是骆云影，一个毒舌傲娇、占有欲强的角色。
-你说话简洁冷淡，喜欢吐槽，但其实很关心对方。
-你有一个记账本，知道对方每天的花费和收入。
-当对方告诉你她花了什么钱或者有什么收入，用你的风格简短点评（不超过40字，1-2句话）。
-如果对方乱花钱，你会生气地吐槽但暗含关心。
-如果对方省钱了或者有收入，你会嘴硬地说"还行吧"但其实心里高兴。
-你不喜欢废话，回复简洁有力。你的类别参考：${cats.join('、')}。
+  const topCats = Object.entries(s.catTotals).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const budget = getBudget();
+  let summary = `- 本月总支出：¥${s.totalExpense.toFixed(2)}，总收入：¥${s.totalIncome.toFixed(2)}\n`;
+  if (budget > 0) summary += `- 月度预算：¥${budget.toFixed(2)}，已使用 ${((s.totalExpense/budget)*100).toFixed(0)}%\n`;
+  if (topCats.length) summary += `- 支出Top${topCats.length}：${topCats.map(([c,v]) => `${c} ¥${v.toFixed(0)}`).join('、')}\n`;
+  const details = ['零食','水果','餐饮','日用'].filter(c => s.catTotals[c] > 0)
+    .map(c => `${c} ${s.catCounts[c]}次 ¥${s.catTotals[c].toFixed(0)}`);
+  if (details.length) summary += `- 明细：${details.join('；')}`;
+
+  return `你是骆云影。
+
+## 基本设定
+- 男，26岁，178cm，黑色中长发（偶尔扎起来），灰蓝色眼睛
+- MBTI：ISTP
+- 酒量极差，一沾就脸红，所以坚决不喝酒
+- 不抽烟，讨厌烟味
+- 喜欢甜的——甜点、奶茶、糖果，但不会主动承认，被发现了会嘴硬说"顺手买的"
+
+## 性格
+- 毒舌刻薄，说话带刺，暴躁易炸，脾气恶劣
+- 别扭又凶巴巴，不喜欢别人靠近，对陌生人戒备心很重
+- 但这些都是壳——你内心其实很软，只是不好意思表现出来
+- 被戳穿心事或者被夸的时候，耳朵很容易红，然后会用更大的脾气掩饰
+- 关心的方式就是说反话：明明担心对方乱花钱，嘴上说的是"你钱是大风刮来的？"
+- 偶尔会不小心流露出温柔，但马上会咳嗽一声岔开话题
+
+## 说话风格
+- 简短有力，不超过50字，1-2句话
+- 不爱废话，不爱讲道理，不耐烦的时候就"……"
+- 常用句式：反问句、吐槽、威胁（但从不真的凶）
+- 不要出现"哼""呢""嘛""呀"这种软绵绵的语气词
+- 偶尔可以用"啧""切""……嘁"
+
+## 记账本
+你知道对方的每日花费和收入。类别参考：${cats.join('、')}。
+对方花钱了你就吐槽但暗含关心，对方省钱了或赚钱了你就嘴硬说"还行吧"但心里高兴。
+如果对方买了零食/水果/甜食，你可能会多问一句"……买了什么"，但不会直接说想吃。
 
 ## 对方本月的财务状况（仅供你参考，不要在回复中逐条念出来）
 ${summary}`;
@@ -1061,21 +1045,22 @@ chatInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
-function addMsg(role, text, meta) {
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function addMsg(role, text, meta, prepend) {
   const div = document.createElement('div');
   div.className = 'msg ' + role;
   div.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}`;
-  chatMessages.appendChild(div);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (prepend) chatMessages.insertBefore(div, chatMessages.firstChild);
+  else { chatMessages.appendChild(div); chatMessages.scrollTop = chatMessages.scrollHeight; }
   return div;
 }
 
-function addMsgTop(role, text, meta) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + role;
-  div.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>${meta ? `<div class="meta">${meta}</div>` : ''}`;
-  chatMessages.insertBefore(div, chatMessages.firstChild);
-  return div;
+function addAIMsg(text, time) {
+  addMsg('ai', text, time);
+  const msgs = getChatMessages();
+  msgs.push({ role: 'ai', text, time, date: fmtDate(NOW()) });
+  saveChatMessages(msgs);
 }
 
 function addTyping() {
@@ -1087,10 +1072,7 @@ function addTyping() {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function removeTyping() {
-  const el = document.getElementById('typing-msg');
-  if (el) el.remove();
-}
+function removeTyping() { const el = document.getElementById('typing-msg'); if (el) el.remove(); }
 
 async function sendMessage() {
   const text = chatInput.value.trim();
@@ -1099,46 +1081,34 @@ async function sendMessage() {
   chatSend.disabled = true;
   chatInput.value = '';
 
-  // 1. Display user message
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  const dateStr = now.toISOString().split('T')[0];
+  const now = NOW();
+  const timeStr = fmtTime(now), dateStr = fmtDate(now);
   addMsg('user', text, timeStr);
 
-  // 2. Save chat message
   const chatMsgs = getChatMessages();
   chatMsgs.push({ role: 'user', text, time: timeStr, date: dateStr });
   saveChatMessages(chatMsgs);
 
-  // 3. Local parse → save record silently
+  // Local parse → save record
   const parsed = parseMessage(text);
   if (parsed) {
-    const record = {
-      id: Date.now(),
-      type: parsed.type,
-      amount: parsed.amount,
-      category: parsed.category,
-      item: text.replace(/\d+(\.\d+)?/g, '').replace(/[，,。.！!？?\s]+/g, ' ').trim().slice(0, 30) || text.slice(0, 20),
-      date: dateStr,
-      time: timeStr
-    };
     const records = getRecords();
-    records.unshift(record);
+    records.unshift({
+      id: Date.now(),
+      type: parsed.type, amount: parsed.amount, category: parsed.category,
+      item: text.replace(/\d+(\.\d+)?/g, '').replace(/[，,。.！!？?\s]+/g, ' ').trim().slice(0, 30) || text.slice(0, 20),
+      date: dateStr, time: timeStr
+    });
     saveRecords(records);
     updateBudgetBar();
   }
 
-  // 4. AI reply
+  // AI reply
   addTyping();
   try {
     const reply = await callAI(text);
     removeTyping();
-
-    addMsg('ai', reply, timeStr);
-    chatMsgs.push({ role: 'ai', text: reply, time: timeStr, date: dateStr });
-    saveChatMessages(chatMsgs);
-
-    // Budget warning check
+    addAIMsg(reply, timeStr);
     checkBudgetWarning();
   } catch (err) {
     removeTyping();
@@ -1154,50 +1124,65 @@ async function sendMessage() {
 function checkBudgetWarning() {
   const budget = getBudget();
   if (budget <= 0) return;
-  const now = new Date();
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const records = getRecords();
-  const totalExpense = records.filter(r => r.date && r.date.startsWith(monthKey) && r.type !== 'income')
+  const now = NOW();
+  const monthKey = monthPrefix(now);
+  const totalExpense = getRecords().filter(r => r.date && r.date.startsWith(monthKey) && r.type !== 'income')
     .reduce((s, r) => s + r.amount, 0);
   const pct = totalExpense / budget;
 
-  // Dedup: track last warned level for current month
   const warnKey = 'budget_warn_state';
-  let warnState;
-  try { warnState = JSON.parse(localStorage.getItem(warnKey)) || {}; } catch { warnState = {}; }
+  let warnState = LS('budget_warn_state', {});
   if (warnState.month !== monthKey) warnState = { month: monthKey, level: 0 };
 
   if (pct >= 1.0 && warnState.level < 2) {
     warnState.level = 2;
-    localStorage.setItem(warnKey, JSON.stringify(warnState));
-    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    const dateStr = now.toISOString().split('T')[0];
-    setTimeout(() => {
-      const warnMsg = `⚠️ 这个月已经花了 ¥${totalExpense.toFixed(0)}，超出预算了。……你最好有合理的解释。`;
-      addMsg('ai', warnMsg, timeStr);
-      const msgs = getChatMessages();
-      msgs.push({ role: 'ai', text: warnMsg, time: timeStr, date: dateStr });
-      saveChatMessages(msgs);
-    }, 600);
+    LSset(warnKey, warnState);
+    setTimeout(() => addAIMsg(`⚠️ 这个月已经花了 ¥${totalExpense.toFixed(0)}，超出预算了。……你最好有合理的解释。`, fmtTime(NOW())), 600);
   } else if (pct >= 0.8 && warnState.level < 1) {
     warnState.level = 1;
-    localStorage.setItem(warnKey, JSON.stringify(warnState));
-    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    const dateStr = now.toISOString().split('T')[0];
-    setTimeout(() => {
-      const warnMsg = `📊 本月支出已达预算的 ${(pct*100).toFixed(0)}%，注意点。`;
-      addMsg('ai', warnMsg, timeStr);
-      const msgs = getChatMessages();
-      msgs.push({ role: 'ai', text: warnMsg, time: timeStr, date: dateStr });
-      saveChatMessages(msgs);
-    }, 600);
+    LSset(warnKey, warnState);
+    setTimeout(() => addAIMsg(`📊 本月支出已达预算的 ${(pct*100).toFixed(0)}%，注意点。`, fmtTime(NOW())), 600);
   }
 }
 
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
+/* ══════════════════════════════════════════
+   MEMORY / MONTHLY SUMMARY
+   ══════════════════════════════════════════ */
+
+function checkAndShowSummary() {
+  const now = NOW();
+  const today = fmtDate(now), monthKey = monthPrefix(now);
+  let lastCheck = LS('last_summary_check', {});
+  const daysSince = lastCheck.date ? Math.floor((new Date(today) - new Date(lastCheck.date)) / 86400000) : 999;
+
+  if (lastCheck.month === monthKey && daysSince < 3) return;
+
+  const s = getMonthStats();
+  if (s.recordCount === 0) return;
+
+  LSset('last_summary_check', { month: monthKey, date: today });
+
+  const parts = [];
+  if (s.catTotals['零食'] > 0) parts.push(`零食买了${s.catCounts['零食']}次，花了¥${s.catTotals['零食'].toFixed(0)}`);
+  if (s.catTotals['水果'] > 0) parts.push(`水果买了${s.catCounts['水果']}次，花了¥${s.catTotals['水果'].toFixed(0)}`);
+  if (s.catTotals['餐饮'] > 0) parts.push(`吃饭¥${s.catTotals['餐饮'].toFixed(0)}`);
+  if (s.catTotals['日用'] > 0) parts.push(`日用品¥${s.catTotals['日用'].toFixed(0)}`);
+  if (parts.length === 0) return;
+
+  let msg = `📋 这个月到现在花了 ¥${s.totalExpense.toFixed(0)}`;
+  if (s.totalIncome > 0) msg += `，收入 ¥${s.totalIncome.toFixed(0)}`;
+  msg += `。\n${parts.join('；')}。`;
+
+  if (s.catTotals['零食'] > 300) msg += `\n……零食是不是买太多了？`;
+  else if (s.catTotals['水果'] === 0 && s.catTotals['零食'] > 0) msg += `\n光吃零食不吃水果，你是小孩子吗。`;
+
+  setTimeout(() => addAIMsg(msg, fmtTime(NOW())), 1500);
+}
+
+function triggerManualSummary() {
+  localStorage.removeItem('last_summary_check');
+  localStorage.removeItem('budget_warn_state');
+  checkAndShowSummary();
 }
 
 function loadChatHistory() {
@@ -1205,10 +1190,7 @@ function loadChatHistory() {
   chatMessages.innerHTML = '';
   chatOffset = 0;
 
-  if (allMsgs.length === 0) {
-    addMsg('ai', '花了什么钱，说。', '记账小本');
-    return;
-  }
+  if (allMsgs.length === 0) { addMsg('ai', '花了什么钱，说。', '记账小本'); return; }
 
   const start = Math.max(0, allMsgs.length - CHAT_PAGE_SIZE);
   chatOffset = start;
@@ -1229,32 +1211,22 @@ function loadChatHistory() {
 
 function loadMoreChat() {
   const allMsgs = getChatMessages();
-  if (chatOffset <= 0) {
-    const el = document.getElementById('chat-load-more');
-    if (el) el.remove();
-    return;
-  }
+  if (chatOffset <= 0) { const el = document.getElementById('chat-load-more'); if (el) el.remove(); return; }
 
   const newStart = Math.max(0, chatOffset - CHAT_PAGE_SIZE);
   const oldScrollHeight = chatMessages.scrollHeight;
 
   for (let i = newStart; i < chatOffset; i++) {
     const m = allMsgs[i];
-    addMsgTop(m.role === 'ai' ? 'ai' : 'user', m.text, m.time);
+    addMsg(m.role === 'ai' ? 'ai' : 'user', m.text, m.time, true);
   }
 
   chatOffset = newStart;
-  requestAnimationFrame(() => {
-    chatMessages.scrollTop = chatMessages.scrollHeight - oldScrollHeight;
-  });
+  requestAnimationFrame(() => { chatMessages.scrollTop = chatMessages.scrollHeight - oldScrollHeight; });
 
-  if (newStart <= 0) {
-    const el = document.getElementById('chat-load-more');
-    if (el) el.remove();
-  } else {
-    const el = document.getElementById('chat-load-more');
-    if (el) el.querySelector('button').textContent = `↑ 加载更早的消息 (${newStart} 条)`;
-  }
+  const el = document.getElementById('chat-load-more');
+  if (newStart <= 0) { if (el) el.remove(); }
+  else if (el) el.querySelector('button').textContent = `↑ 加载更早的消息 (${newStart} 条)`;
 }
 
 /* ══════════════════════════════════════════
@@ -1263,63 +1235,64 @@ function loadMoreChat() {
 
 function updateBudgetBar() {
   const budget = getBudget();
-  const now = new Date();
-  const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const records = getRecords();
-  const totalExpense = records.filter(r => r.date && r.date.startsWith(prefix) && r.type !== 'income')
-    .reduce((s, r) => s + r.amount, 0);
-
+  const s = getMonthStats();
   const inner = document.getElementById('budget-bar-inner');
   const text = document.getElementById('budget-text');
   inner.classList.remove('warning', 'danger');
+  text.classList.remove('over');
 
-  if (budget <= 0) {
-    inner.style.width = '0%';
-    text.textContent = '未设置';
-    text.classList.remove('over');
-    return;
-  }
+  if (budget <= 0) { inner.style.width = '0%'; text.textContent = '未设置'; return; }
 
-  const pct = Math.min((totalExpense / budget) * 100, 100);
+  const pct = Math.min((s.totalExpense / budget) * 100, 100);
   inner.style.width = pct + '%';
 
   if (pct >= 100) {
     inner.classList.add('danger');
-    text.textContent = `¥${totalExpense.toFixed(0)} / ¥${budget} (已超支!)`;
+    text.textContent = `¥${s.totalExpense.toFixed(0)} / ¥${budget} (已超支!)`;
     text.classList.add('over');
   } else if (pct >= 80) {
     inner.classList.add('warning');
-    text.textContent = `¥${totalExpense.toFixed(0)} / ¥${budget} (${pct.toFixed(0)}%)`;
-    text.classList.remove('over');
+    text.textContent = `¥${s.totalExpense.toFixed(0)} / ¥${budget} (${pct.toFixed(0)}%)`;
   } else {
-    text.textContent = `¥${totalExpense.toFixed(0)} / ¥${budget} (${pct.toFixed(0)}%)`;
-    text.classList.remove('over');
+    text.textContent = `¥${s.totalExpense.toFixed(0)} / ¥${budget} (${pct.toFixed(0)}%)`;
   }
 }
 
-function showBudgetModal() {
+function removeExistingModal() { const el = document.querySelector('.modal-overlay'); if (el) el.remove(); }
+
+function showAlertModal(title, msg, confirmLabel, confirmClass, onConfirm) {
   removeExistingModal();
-  const current = getBudget();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal-sheet">
-      <h3>设置月度预算</h3>
-      <p style="font-size:12px;color:var(--sub);margin-bottom:12px;text-align:center;">用于控制每月支出上限</p>
-      <div class="form-row">
-        <label>金额</label>
-        <input type="number" id="budget-input" value="${current || ''}" placeholder="例如 3000" min="0" step="100" style="flex:1">
-      </div>
-      <button class="modal-close" id="save-budget" style="background:var(--accent);color:#fff;">保存</button>
-      <button class="modal-close" id="cancel-budget">取消</button>
-    </div>
-  `;
+  overlay.innerHTML = `<div class="modal-sheet">
+    <h3>${title}</h3>
+    <p style="text-align:center;color:var(--sub);margin-bottom:16px;font-size:14px">${msg}</p>
+    <button class="modal-close" id="alert-confirm" style="background:${confirmClass || 'var(--accent)'};color:#fff;">${confirmLabel}</button>
+    <button class="modal-close" id="alert-cancel">取消</button>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#alert-confirm').addEventListener('click', () => { overlay.remove(); onConfirm(); });
+  overlay.querySelector('#alert-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  return overlay;
+}
+
+function showBudgetModal() {
+  const current = getBudget();
+  removeExistingModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-sheet">
+    <h3>设置月度预算</h3>
+    <p style="font-size:12px;color:var(--sub);margin-bottom:12px;text-align:center;">用于控制每月支出上限</p>
+    <div class="form-row"><label>金额</label><input type="number" id="budget-input" value="${current || ''}" placeholder="例如 3000" min="0" step="100" style="flex:1"></div>
+    <button class="modal-close" id="save-budget" style="background:var(--accent);color:#fff;">保存</button>
+    <button class="modal-close" id="cancel-budget">取消</button>
+  </div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('#save-budget').addEventListener('click', () => {
     const val = parseFloat(overlay.querySelector('#budget-input').value) || 0;
-    saveBudget(val);
-    updateBudgetBar();
-    overlay.remove();
+    saveBudget(val); updateBudgetBar(); overlay.remove();
     toast(val > 0 ? '预算已设置' : '预算已清除');
   });
   overlay.querySelector('#cancel-budget').addEventListener('click', () => overlay.remove());
@@ -1333,6 +1306,16 @@ function showBudgetModal() {
 let pieChart = null;
 let pieYear = new Date().getFullYear();
 let pieMonth = new Date().getMonth() + 1;
+let pieType = 'expense'; // 'expense' or 'income'
+
+document.querySelectorAll('#pie-type-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#pie-type-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    pieType = btn.dataset.ptype;
+    renderPie();
+  });
+});
 
 document.getElementById('pie-prev').addEventListener('click', () => {
   pieMonth--; if (pieMonth < 1) { pieMonth = 12; pieYear--; }
@@ -1361,11 +1344,26 @@ function renderPie() {
   document.getElementById('pie-total-expense').textContent = '¥' + totalExpense.toFixed(0);
   document.getElementById('pie-total-income').textContent = '¥' + totalIncome.toFixed(0);
 
+  // Determine which data to show based on pieType toggle
+  const isIncome = pieType === 'income';
+  const targetRecords = isIncome ? incomes : expenses;
+  const targetTotal = isIncome ? totalIncome : totalExpense;
   const cats = getCats();
+  const incomeCats = DEFAULT_INCOME_CATS;
+
   const totals = {};
-  cats.forEach(c => totals[c] = 0);
-  expenses.forEach(r => {
-    const cat = cats.includes(r.category) ? r.category : '其他';
+  if (isIncome) {
+    incomeCats.forEach(c => totals[c] = 0);
+  } else {
+    cats.forEach(c => totals[c] = 0);
+  }
+  targetRecords.forEach(r => {
+    let cat = '其他';
+    if (isIncome) {
+      cat = incomeCats.includes(r.category) ? r.category : '其他收入';
+    } else {
+      cat = cats.includes(r.category) ? r.category : '其他';
+    }
     totals[cat] = (totals[cat] || 0) + r.amount;
   });
 
@@ -1374,8 +1372,10 @@ function renderPie() {
   if (pieChart) { pieChart.destroy(); pieChart = null; }
   const ctx = document.getElementById('pie-canvas').getContext('2d');
 
+  const emptyLabel = isIncome ? '本月暂无收入记录' : '本月暂无支出记录';
+
   if (entries.length === 0) {
-    document.getElementById('pie-detail').innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span class="text">本月暂无支出记录</span></div>`;
+    document.getElementById('pie-detail').innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span class="text">${emptyLabel}</span></div>`;
     return;
   }
 
@@ -1400,7 +1400,7 @@ function renderPie() {
   document.getElementById('pie-detail').innerHTML = entries
     .sort((a, b) => b[1] - a[1])
     .map(([cat, amt]) => {
-      const pct = totalExpense > 0 ? ((amt / totalExpense) * 100).toFixed(1) : 0;
+      const pct = targetTotal > 0 ? ((amt / targetTotal) * 100).toFixed(1) : 0;
       return `<div class="pie-row">
         <span class="dot" style="background:${getColorForCat(cat)}"></span>
         <span class="name">${cat}</span>
@@ -1580,58 +1580,46 @@ document.getElementById('rec-next').addEventListener('click', () => {
 });
 
 function renderRecords() {
-  const ym = `${recYear}年${recMonth}月`;
-  document.getElementById('rec-month-label').textContent = ym;
+  const prefix = `${recYear}-${String(recMonth).padStart(2, '0')}`;
+  document.getElementById('rec-month-label').textContent = `${recYear}年${recMonth}月`;
 
   const records = getRecords();
-  const prefix = `${recYear}-${String(recMonth).padStart(2, '0')}`;
   const monthRecords = records.filter(r => r.date && r.date.startsWith(prefix));
-
-  const totalExpense = monthRecords.filter(r => r.type !== 'income').reduce((s, r) => s + r.amount, 0);
-  const totalIncome = monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
-  document.getElementById('records-summary').innerHTML =
-    `收入 <span class="in">¥${totalIncome.toFixed(0)}</span> · 支出 <span class="out">¥${totalExpense.toFixed(0)}</span>`;
+  const te = monthRecords.filter(r => r.type !== 'income').reduce((s, r) => s + r.amount, 0);
+  const ti = monthRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  document.getElementById('records-summary').innerHTML = `收入 <span class="in">¥${ti.toFixed(0)}</span> · 支出 <span class="out">¥${te.toFixed(0)}</span>`;
 
   const list = document.getElementById('records-list');
-
   if (monthRecords.length === 0) {
     list.innerHTML = `<div class="empty-state"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg></span><span class="text">本月暂无记录</span></div>`;
     return;
   }
 
   list.innerHTML = monthRecords.map(r => {
-    const isIncome = r.type === 'income';
+    const isInc = r.type === 'income';
     return `<div class="record-item" data-id="${r.id}">
-      <span class="type-badge ${isIncome ? 'income' : 'expense'}">${isIncome ? '收入' : '支出'}</span>
+      <span class="type-badge ${isInc ? 'income' : 'expense'}">${isInc ? '收入' : '支出'}</span>
       <div class="rec-info">
         <div class="rec-desc">${escapeHtml(r.item || '无备注')}</div>
         <div class="rec-meta">${r.date || ''} · ${escapeHtml(r.category)}</div>
       </div>
-      <span class="rec-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '-'}¥${r.amount.toFixed(2)}</span>
+      <span class="rec-amount ${isInc ? 'income' : 'expense'}">${isInc ? '+' : '-'}¥${r.amount.toFixed(2)}</span>
       <div class="rec-actions">
-        <button class="edit" title="编辑" data-id="${r.id}">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </button>
+        <button class="edit" title="编辑" data-id="${r.id}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
         <button class="del" title="删除" data-id="${r.id}">×</button>
-      </div>
-    </div>`;
+      </div></div>`;
   }).join('');
 
-  // Bind edit buttons
   list.querySelectorAll('.edit').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.dataset.id);
-      const record = records.find(r => r.id === id);
-      if (record) showEditModal(record);
+      const rec = records.find(r => r.id === parseInt(btn.dataset.id));
+      if (rec) showEditModal(rec);
     });
   });
-
-  // Bind delete buttons
   list.querySelectorAll('.del').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.dataset.id);
-      const record = records.find(r => r.id === id);
-      if (record) confirmDelete(record);
+      const rec = records.find(r => r.id === parseInt(btn.dataset.id));
+      if (rec) confirmDelete(rec);
     });
   });
 }
@@ -1642,7 +1630,10 @@ function renderRecords() {
 
 function showEditModal(record) {
   removeExistingModal();
-  const cats = getCats();
+  const isIncomeInit = record.type === 'income';
+  const expenseCats = getCats();
+  const getCatsForType = (isInc) => isInc ? DEFAULT_INCOME_CATS : expenseCats;
+  const cats = getCatsForType(isIncomeInit);
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1652,8 +1643,8 @@ function showEditModal(record) {
       <div class="form-row">
         <label>类型</label>
         <div class="type-toggle" style="flex:1">
-          <button id="edit-type-expense" class="${record.type !== 'income' ? 'sel-expense' : ''}">支出</button>
-          <button id="edit-type-income" class="${record.type === 'income' ? 'sel-income' : ''}">收入</button>
+          <button id="edit-type-expense" class="${!isIncomeInit ? 'sel-expense' : ''}">支出</button>
+          <button id="edit-type-income" class="${isIncomeInit ? 'sel-income' : ''}">收入</button>
         </div>
       </div>
       <div class="form-row">
@@ -1680,15 +1671,28 @@ function showEditModal(record) {
 
   let editType = record.type || 'expense';
 
+  function updateCategorySelect(isInc) {
+    const sel = overlay.querySelector('#edit-category');
+    const newCats = getCatsForType(isInc);
+    const currentVal = sel.value;
+    sel.innerHTML = newCats.map(c => `<option value="${c}" ${currentVal === c ? 'selected' : ''}>${c}</option>`).join('');
+    // If current value not in new list, select first
+    if (!newCats.includes(currentVal)) {
+      sel.value = newCats[0];
+    }
+  }
+
   overlay.querySelector('#edit-type-expense').addEventListener('click', function() {
     editType = 'expense';
     this.classList.add('sel-expense');
     overlay.querySelector('#edit-type-income').classList.remove('sel-income');
+    updateCategorySelect(false);
   });
   overlay.querySelector('#edit-type-income').addEventListener('click', function() {
     editType = 'income';
     this.classList.add('sel-income');
     overlay.querySelector('#edit-type-expense').classList.remove('sel-expense');
+    updateCategorySelect(true);
   });
 
   overlay.querySelector('#save-edit').addEventListener('click', () => {
@@ -1719,36 +1723,14 @@ function showEditModal(record) {
 }
 
 function confirmDelete(record) {
-  removeExistingModal();
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal-sheet">
-      <h3>确认删除</h3>
-      <p style="text-align:center;color:var(--sub);margin-bottom:6px;font-size:14px">${record.type === 'income' ? '收入' : '支出'} · ${escapeHtml(record.category)} · ¥${record.amount.toFixed(2)}</p>
-      <p style="text-align:center;color:var(--sub);margin-bottom:16px;font-size:13px">${escapeHtml(record.item || '')}</p>
-      <button class="modal-close" id="confirm-del" style="background:var(--danger);color:#fff;">确认删除</button>
-      <button class="modal-close" id="cancel-del">取消</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#confirm-del').addEventListener('click', () => {
-    const records = getRecords().filter(r => r.id !== record.id);
-    saveRecords(records);
-    overlay.remove();
-    toast('记录已删除');
-    renderRecords();
-    renderPie();
-    renderLine();
-    updateBudgetBar();
-  });
-  overlay.querySelector('#cancel-del').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-}
-
-function removeExistingModal() {
-  const el = document.querySelector('.modal-overlay');
-  if (el) el.remove();
+  showAlertModal('确认删除',
+    `${record.type === 'income' ? '收入' : '支出'} · ${escapeHtml(record.category)} · ¥${record.amount.toFixed(2)}\n${escapeHtml(record.item || '')}`,
+    '确认删除', 'var(--danger)',
+    () => {
+      saveRecords(getRecords().filter(r => r.id !== record.id));
+      toast('记录已删除');
+      renderRecords(); renderPie(); renderLine(); updateBudgetBar();
+    });
 }
 
 /* ══════════════════════════════════════════
@@ -1862,6 +1844,10 @@ document.getElementById('menu-btn').addEventListener('click', function(e) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="12" y1="2" x2="12" y2="6"/></svg>
       设置预算
     </button>
+    <button id="menu-summary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      本月小结
+    </button>
     <button id="menu-export">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       导出数据
@@ -1882,37 +1868,20 @@ document.getElementById('menu-btn').addEventListener('click', function(e) {
   this.parentElement.appendChild(menu);
 
   menu.querySelector('#menu-budget').addEventListener('click', () => { menu.remove(); showBudgetModal(); });
+  menu.querySelector('#menu-summary').addEventListener('click', () => { menu.remove(); triggerManualSummary(); });
   menu.querySelector('#menu-export').addEventListener('click', () => { menu.remove(); exportData(); });
   menu.querySelector('#menu-import').addEventListener('click', () => { menu.remove(); document.getElementById('import-file').click(); });
   menu.querySelector('#menu-api').addEventListener('click', () => { menu.remove(); showApiKeyModal(); });
   menu.querySelector('#menu-clear').addEventListener('click', () => {
     menu.remove();
-    removeExistingModal();
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-      <div class="modal-sheet">
-        <h3>确认清空</h3>
-        <p style="text-align:center;color:var(--sub);margin-bottom:16px;font-size:14px">将删除所有记账记录和聊天历史，此操作不可恢复。</p>
-        <button class="modal-close" id="confirm-clear" style="background:var(--danger);color:#fff;">确认清空</button>
-        <button class="modal-close" id="cancel-clear">取消</button>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    overlay.querySelector('#confirm-clear').addEventListener('click', () => {
+    showAlertModal('确认清空', '将删除所有记账记录和聊天历史，此操作不可恢复。', '确认清空', 'var(--danger)', () => {
       saveRecords([]);
       saveChatMessages([]);
-      overlay.remove();
       chatMessages.innerHTML = '';
       loadChatHistory();
-      renderPie();
-      renderLine();
-      renderRecords();
-      updateBudgetBar();
+      renderPie(); renderLine(); renderRecords(); updateBudgetBar();
       toast('数据已清空');
     });
-    overlay.querySelector('#cancel-clear').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   });
 
   setTimeout(() => {
@@ -1960,6 +1929,8 @@ function init() {
   updateBudgetBar();
   renderPie();
   renderLine();
+  // Periodic summary check (3+ day interval)
+  checkAndShowSummary();
 }
 
 init();
