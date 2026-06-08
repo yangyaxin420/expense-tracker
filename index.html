@@ -853,7 +853,7 @@ function getBudget() { const v = localStorage.getItem('monthly_budget'); return 
 function saveBudget(v) { localStorage.setItem('monthly_budget', v); }
 function getChatMessages() { return LS('chat_messages', []); }
 function saveChatMessages(v) { LSset('chat_messages', v); }
-function getApiKey() { return localStorage.getItem('ds_api_key') || 'sk-befed2747a8c4e06a99ac2bb96597d96'; }
+function getApiKey() { return localStorage.getItem('ds_api_key') || ''; }
 function saveApiKey(k) { localStorage.setItem('ds_api_key', k); }
 
 function getColorForCat(cat) {
@@ -1079,6 +1079,13 @@ function removeTyping() { const el = document.getElementById('typing-msg'); if (
 async function sendMessage() {
   const text = chatInput.value.trim();
   if (!text || isSending) return;
+
+  // 没有API Key → 弹出设置框
+  if (!getApiKey()) {
+    toast('请先设置 API Key');
+    showApiKeyModal();
+    return;
+  }
   isSending = true;
   chatSend.disabled = true;
   chatInput.value = '';
@@ -1906,7 +1913,8 @@ function showApiKeyModal() {
   overlay.innerHTML = `
     <div class="modal-sheet">
       <h3>DeepSeek API Key</h3>
-      <p style="font-size:12px;color:var(--sub);margin-bottom:8px;">使用自己的 API Key 以获得更稳定的服务</p>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:4px;">在 <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--accent);">platform.deepseek.com/api_keys</a> 创建Key</p>
+      <p style="font-size:11px;color:#f87171;margin-bottom:8px;">Key只保存在你的浏览器里，不会上传到任何地方</p>
       <input type="password" id="api-key-input" value="${escapeHtml(currentKey)}" placeholder="sk-..." style="width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;outline:none;margin:8px 0 12px;">
       <button class="modal-close" id="save-api-key" style="background:var(--accent);color:#fff;">保存</button>
       <button class="modal-close" id="cancel-api-key">取消</button>
@@ -1933,6 +1941,8 @@ function init() {
   renderLine();
   // Periodic summary check (3+ day interval)
   checkAndShowSummary();
+  // 没配API Key → 弹设置框
+  if (!getApiKey()) { showApiKeyModal(); }
 }
 
 init();
