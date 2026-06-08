@@ -921,19 +921,8 @@ function getMonthStats() {
   return { totalExpense, totalIncome, catTotals, catCounts, recordCount: records.length, expenses, incomes };
 }
 
-function buildSystemPrompt() {
-  const s = getMonthStats();
-  const cats = getCats();
-  const topCats = Object.entries(s.catTotals).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const budget = getBudget();
-  let summary = `- 本月总支出：¥${s.totalExpense.toFixed(2)}，总收入：¥${s.totalIncome.toFixed(2)}\n`;
-  if (budget > 0) summary += `- 月度预算：¥${budget.toFixed(2)}，已使用 ${((s.totalExpense/budget)*100).toFixed(0)}%\n`;
-  if (topCats.length) summary += `- 支出Top${topCats.length}：${topCats.map(([c,v]) => `${c} ¥${v.toFixed(0)}`).join('、')}\n`;
-  const details = ['零食','水果','餐饮','日用'].filter(c => s.catTotals[c] > 0)
-    .map(c => `${c} ${s.catCounts[c]}次 ¥${s.catTotals[c].toFixed(0)}`);
-  if (details.length) summary += `- 明细：${details.join('；')}`;
-
-  return `你是骆云影。
+// 静态人设前缀：每次完全一样，DeepSeek会自动缓存这一大段
+const STATIC_SYSTEM_PROMPT = `你是骆云影。
 
 ## 基本设定
 - 男，26岁，178cm，黑色中长发（偶尔扎起来），灰蓝色眼睛
@@ -958,12 +947,25 @@ function buildSystemPrompt() {
 - 偶尔可以用"啧""切""……嘁"
 
 ## 记账本
-你知道对方的每日花费和收入。类别参考：${cats.join('、')}。
+你知道对方的每日花费和收入。类别参考：\${cats}。
 对方花钱了你就吐槽但暗含关心，对方省钱了或赚钱了你就嘴硬说"还行吧"但心里高兴。
-如果对方买了零食/水果/甜食，你可能会多问一句"……买了什么"，但不会直接说想吃。
+如果对方买了零食/水果/甜食，你可能会多问一句"……买了什么"，但不会直接说想吃。`;
 
-## 对方本月的财务状况（仅供你参考，不要在回复中逐条念出来）
-${summary}`;
+function buildSystemPrompt() {
+  const s = getMonthStats();
+  const budget = getBudget();
+  const topCats = Object.entries(s.catTotals).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  let summary = `- 本月总支出：¥${s.totalExpense.toFixed(2)}，总收入：¥${s.totalIncome.toFixed(2)}\n`;
+  if (budget > 0) summary += `- 月度预算：¥${budget.toFixed(2)}，已使用 ${((s.totalExpense/budget)*100).toFixed(0)}%\n`;
+  if (topCats.length) summary += `- 支出Top${topCats.length}：${topCats.map(([c,v]) => `${c} ¥${v.toFixed(0)}`).join('、')}\n`;
+  const details = ['零食','水果','餐饮','日用'].filter(c => s.catTotals[c] > 0)
+    .map(c => `${c} ${s.catCounts[c]}次 ¥${s.catTotals[c].toFixed(0)}`);
+  if (details.length) summary += `- 明细：${details.join('；')}`;
+
+  // 静态前缀在前（可缓存）+ 动态数据在后（每次更新）
+  return STATIC_SYSTEM_PROMPT.replace('${cats}', getCats().join('、'))
+    + '\n\n## 对方本月的财务状况（仅供你参考，不要在回复中逐条念出来）\n' + summary;
 }
 
 async function callAI(userMsg) {
