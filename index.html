@@ -643,6 +643,18 @@ nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
 .menu-dropdown button svg { width: 18px; height: 18px; stroke: var(--sub); }
 .menu-dropdown button.danger { color: var(--danger); }
 
+/* Backup Cards */
+.backup-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--card); cursor: pointer;
+  font-size: 13px; text-align: left; transition: background .12s;
+}
+.backup-card:active { background: var(--bg); }
+.backup-card.latest { border-color: var(--accent); }
+.backup-card .backup-date { font-weight: 600; color: var(--text); }
+.backup-card .backup-meta { font-size: 11px; color: var(--sub); }
+
 /* Empty State */
 .empty-state {
   flex: 1;
@@ -857,6 +869,42 @@ const fmtDate = d => d.toISOString().split('T')[0];
 const fmtTime = d => d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 const monthPrefix = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
+/* ─── 自动备份 ─── */
+const BACKUP_KEY = 'expense_backups';
+const MAX_BACKUPS = 10;
+
+function getBackups() { return LS(BACKUP_KEY, []); }
+function saveBackups(v) { LSset(BACKUP_KEY, v); }
+
+function autoBackup() {
+  const backups = getBackups();
+  const snapshot = {
+    id: Date.now(),
+    time: new Date().toISOString(),
+    records: getRecords(),
+    categories: getCats(),
+    budget: getBudget(),
+    chatMessages: getChatMessages()
+  };
+  backups.unshift(snapshot);
+  if (backups.length > MAX_BACKUPS) backups.length = MAX_BACKUPS;
+  saveBackups(backups);
+}
+
+function restoreFromBackup(id) {
+  const backups = getBackups();
+  const snap = backups.find(b => b.id === id);
+  if (!snap) { toast('备份未找到'); return; }
+  saveRecords(snap.records || []);
+  if (snap.categories) saveCats(snap.categories);
+  if (snap.budget !== undefined) saveBudget(snap.budget);
+  if (snap.chatMessages) saveChatMessages(snap.chatMessages);
+  // Re-render everything
+  loadChatHistory();
+  renderPie(); renderLine(); renderRecords(); updateBudgetBar();
+  toast('已恢复 ' + snap.time.slice(0, 10) + ' 的备份');
+}
+
 const DEFAULT_CATS = ['餐饮','购物','交通','娱乐','日用','零食','水果','其他'];
 const DEFAULT_INCOME_CATS = ['工资','红包','兼职','生活费','报销','其他收入'];
 const CAT_COLORS = {
@@ -881,7 +929,7 @@ const CAT_KW = [
 function getCats() { return LS('custom_categories', [...DEFAULT_CATS]); }
 function saveCats(v) { LSset('custom_categories', v); }
 function getRecords() { return LS('expense_records', []); }
-function saveRecords(v) { LSset('expense_records', v); }
+function saveRecords(v) { LSset('expense_records', v); autoBackup(); }
 function getBudget() { const v = localStorage.getItem('monthly_budget'); return v ? parseFloat(v) || 0 : 0; }
 function saveBudget(v) { localStorage.setItem('monthly_budget', v); }
 function getChatMessages() { return LS('chat_messages', []); }
@@ -1878,6 +1926,61 @@ function importData(file) {
   reader.readAsText(file);
 }
 
+/* ─── 恢复备份 ─── */
+function showRestoreModal() {
+  const backups = getBackups();
+  if (!backups.length) { toast('暂无备份'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet" style="max-height:70vh;display:flex;flex-direction:column;">
+      <h3 style="margin-bottom:4px;">恢复备份</h3>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:12px;">每次记账后自动备份，保留最近 ${MAX_BACKUPS} 份</p>
+      <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;" id="backup-list"></div>
+      <button class="modal-close" id="backup-cancel" style="margin-top:10px;background:#f0f0f0;color:var(--text);">取消</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const list = overlay.querySelector('#backup-list');
+  backups.forEach((b, i) => {
+    const d = new Date(b.time);
+    const label = d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const count = (b.records || []).length;
+    const chatCount = (b.chatMessages || []).length;
+    const card = document.createElement('button');
+    card.className = 'backup-card' + (i === 0 ? ' latest' : '');
+    card.innerHTML = `
+      <span class="backup-date">${label}${i === 0 ? ' <em style="font-style:normal;color:var(--accent);font-size:11px;">最新</em>' : ''}</span>
+      <span class="backup-meta">${count} 条记录 · ${chatCount} 条消息</span>`;
+    card.addEventListener('click', () => {
+      overlay.remove();
+      showConfirmRestore(b.id, label);
+    });
+    list.appendChild(card);
+  });
+
+  overlay.querySelector('#backup-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function showConfirmRestore(id, label) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-sheet" style="text-align:center;">
+      <h3 style="margin-bottom:8px;">确认恢复</h3>
+      <p style="font-size:14px;color:var(--sub);margin-bottom:16px;">将替换当前所有数据为 <strong>${label}</strong> 的状态</p>
+      <div style="display:flex;gap:8px;">
+        <button class="modal-close" id="restore-confirm" style="flex:1;background:var(--warning);color:#fff;">恢复</button>
+        <button class="modal-close" id="restore-cancel" style="flex:1;background:#f0f0f0;color:var(--text);">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#restore-confirm').addEventListener('click', () => { overlay.remove(); restoreFromBackup(id); });
+  overlay.querySelector('#restore-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
 document.getElementById('import-file').addEventListener('change', function() {
   if (this.files[0]) {
     importData(this.files[0]);
@@ -1913,6 +2016,10 @@ document.getElementById('menu-btn').addEventListener('click', function(e) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       导入数据
     </button>
+    <button id="menu-restore">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      恢复备份
+    </button>
     <button id="menu-api">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       API 设置
@@ -1928,12 +2035,12 @@ document.getElementById('menu-btn').addEventListener('click', function(e) {
   menu.querySelector('#menu-summary').addEventListener('click', () => { menu.remove(); triggerManualSummary(); });
   menu.querySelector('#menu-export').addEventListener('click', () => { menu.remove(); exportData(); });
   menu.querySelector('#menu-import').addEventListener('click', () => { menu.remove(); document.getElementById('import-file').click(); });
-  menu.querySelector('#menu-api').addEventListener('click', () => { menu.remove(); showApiKeyModal(); });
+  menu.querySelector('#menu-restore').addEventListener('click', () => { menu.remove(); showRestoreModal(); });).addEventListener('click', () => { menu.remove(); showApiKeyModal(); });
   menu.querySelector('#menu-clear').addEventListener('click', () => {
     menu.remove();
     showAlertModal('确认清空', '将删除所有记账记录和聊天历史，此操作不可恢复。', '确认清空', 'var(--danger)', () => {
-      saveRecords([]);
-      saveChatMessages([]);
+      LSset('expense_records', []);
+      LSset('chat_messages', []);
       chatMessages.innerHTML = '';
       loadChatHistory();
       renderPie(); renderLine(); renderRecords(); updateBudgetBar();
