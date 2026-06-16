@@ -364,6 +364,7 @@ header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
   padding: 4px 0 8px;
   flex-shrink: 0;
   gap: 6px;
+  overflow: hidden;
 }
 #records-month {
   font-size: 14px;
@@ -371,7 +372,9 @@ header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
   display: flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 #records-search-btn {
   width: 30px; height: 30px;
@@ -781,7 +784,7 @@ nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
         <div id="pie-header">
           <div id="pie-month">
             <button id="pie-prev">‹</button>
-            <span id="pie-month-label">2026年5月</span>
+            <span id="pie-month-label">2026年6月</span>
             <button id="pie-next">›</button>
           </div>
           <button id="manage-cat-btn">管理类别</button>
@@ -823,7 +826,7 @@ nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
         <div id="records-header">
           <div id="records-month">
             <button id="rec-prev">‹</button>
-            <span id="rec-month-label">2026年5月</span>
+            <span id="rec-month-label">2026年6月</span>
             <button id="rec-next">›</button>
           </div>
           <span id="records-summary"></span>
