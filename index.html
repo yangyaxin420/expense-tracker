@@ -364,11 +364,15 @@ header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
   justify-content: space-between;
   padding: 4px 0 8px;
   flex-shrink: 0;
+  gap: 4px;
 }
-#records-header-left {
+#records-month {
+  font-size: 16px;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 #records-search-btn {
   width: 32px; height: 32px;
@@ -421,21 +425,17 @@ header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
   cursor: pointer;
   display: none;
 }
-#records-month {
-  font-size: 16px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 #records-month button {
   background: none; border: none;
   font-size: 18px; cursor: pointer;
   color: var(--accent); padding: 4px 8px;
 }
 #records-summary {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--sub);
+  text-align: center;
+  white-space: nowrap;
+  flex: 1;
 }
 #records-summary .in { color: var(--income); font-weight: 600; }
 #records-summary .out { color: var(--expense); font-weight: 600; }
@@ -818,14 +818,12 @@ nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
       <!-- Tab 4: Records -->
       <div class="panel" id="records-panel">
         <div id="records-header">
-          <div id="records-header-left">
-            <div id="records-month">
-              <button id="rec-prev">‹</button>
-              <span id="rec-month-label">2026年5月</span>
-              <button id="rec-next">›</button>
-            </div>
-            <span id="records-summary"></span>
+          <div id="records-month">
+            <button id="rec-prev">‹</button>
+            <span id="rec-month-label">2026年5月</span>
+            <button id="rec-next">›</button>
           </div>
+          <span id="records-summary"></span>
           <button id="records-search-btn" title="搜索">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
