@@ -365,9 +365,36 @@ header .header-btn svg { width: 20px; height: 20px; stroke: currentColor; }
   padding: 4px 0 8px;
   flex-shrink: 0;
 }
+#records-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#records-search-btn {
+  width: 32px; height: 32px;
+  border: none; background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--sub);
+  transition: background 0.15s;
+}
+#records-search-btn:active { background: var(--border); }
+#records-search-btn.active { color: var(--accent); }
+#records-search-btn svg { width: 18px; height: 18px; stroke: currentColor; }
 #records-search {
   flex-shrink: 0;
   padding-bottom: 8px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  max-height: 0;
+  opacity: 0;
+}
+#records-search.open {
+  max-height: 44px;
+  opacity: 1;
 }
 #records-search input {
   width: 100%;
@@ -791,12 +818,17 @@ nav .nav-item .label { font-size: 10px; letter-spacing: 0.5px; }
       <!-- Tab 4: Records -->
       <div class="panel" id="records-panel">
         <div id="records-header">
-          <div id="records-month">
-            <button id="rec-prev">‹</button>
-            <span id="rec-month-label">2026年5月</span>
-            <button id="rec-next">›</button>
+          <div id="records-header-left">
+            <div id="records-month">
+              <button id="rec-prev">‹</button>
+              <span id="rec-month-label">2026年5月</span>
+              <button id="rec-next">›</button>
+            </div>
+            <span id="records-summary"></span>
           </div>
-          <span id="records-summary"></span>
+          <button id="records-search-btn" title="搜索">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
         </div>
         <div id="records-search" style="position:relative">
           <input type="text" id="records-search-input" placeholder="🔍 搜索类别或备注..." autocomplete="off">
@@ -872,23 +904,27 @@ const monthPrefix = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 /* ─── 自动备份 ─── */
 const BACKUP_KEY = 'expense_backups';
 const MAX_BACKUPS = 10;
+let _backupTimer = null;
 
 function getBackups() { return LS(BACKUP_KEY, []); }
 function saveBackups(v) { LSset(BACKUP_KEY, v); }
 
 function autoBackup() {
-  const backups = getBackups();
-  const snapshot = {
-    id: Date.now(),
-    time: new Date().toISOString(),
-    records: getRecords(),
-    categories: getCats(),
-    budget: getBudget(),
-    chatMessages: getChatMessages()
-  };
-  backups.unshift(snapshot);
-  if (backups.length > MAX_BACKUPS) backups.length = MAX_BACKUPS;
-  saveBackups(backups);
+  clearTimeout(_backupTimer);
+  _backupTimer = setTimeout(() => {
+    const backups = getBackups();
+    const snapshot = {
+      id: Date.now(),
+      time: new Date().toISOString(),
+      records: getRecords(),
+      categories: getCats(),
+      budget: getBudget(),
+      chatMessages: getChatMessages()
+    };
+    backups.unshift(snapshot);
+    if (backups.length > MAX_BACKUPS) backups.length = MAX_BACKUPS;
+    saveBackups(backups);
+  }, 3000); // 防抖：停止操作3秒后才备份
 }
 
 function restoreFromBackup(id) {
@@ -2035,7 +2071,8 @@ document.getElementById('menu-btn').addEventListener('click', function(e) {
   menu.querySelector('#menu-summary').addEventListener('click', () => { menu.remove(); triggerManualSummary(); });
   menu.querySelector('#menu-export').addEventListener('click', () => { menu.remove(); exportData(); });
   menu.querySelector('#menu-import').addEventListener('click', () => { menu.remove(); document.getElementById('import-file').click(); });
-  menu.querySelector('#menu-restore').addEventListener('click', () => { menu.remove(); showRestoreModal(); });).addEventListener('click', () => { menu.remove(); showApiKeyModal(); });
+  menu.querySelector('#menu-restore').addEventListener('click', () => { menu.remove(); showRestoreModal(); });
+  menu.querySelector('#menu-api').addEventListener('click', () => { menu.remove(); showApiKeyModal(); });
   menu.querySelector('#menu-clear').addEventListener('click', () => {
     menu.remove();
     showAlertModal('确认清空', '将删除所有记账记录和聊天历史，此操作不可恢复。', '确认清空', 'var(--danger)', () => {
@@ -2094,11 +2131,25 @@ function init() {
   updateBudgetBar();
   renderPie();
   renderLine();
-  // 记录搜索事件
+  // 搜索按钮：展开/收起
+  const searchBtn = document.getElementById('records-search-btn');
+  const searchWrap = document.getElementById('records-search');
+  if (searchBtn && searchWrap) {
+    searchBtn.addEventListener('click', () => {
+      const isOpen = searchWrap.classList.toggle('open');
+      searchBtn.classList.toggle('active', isOpen);
+      if (isOpen) setTimeout(() => document.getElementById('records-search-input').focus(), 250);
+    });
+  }
+  // 记录搜索事件（防抖）
+  let _searchTimer = null;
   const searchInput = document.getElementById('records-search-input');
   const clearBtn = document.getElementById('records-search-clear');
   if (searchInput) {
-    searchInput.addEventListener('input', () => renderRecords(searchInput.value));
+    searchInput.addEventListener('input', () => {
+      clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(() => renderRecords(searchInput.value), 200);
+    });
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
         searchInput.value = '';
