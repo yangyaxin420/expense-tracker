@@ -927,8 +927,14 @@ function autoBackup() {
     };
     backups.unshift(snapshot);
     if (backups.length > MAX_BACKUPS) backups.length = MAX_BACKUPS;
-    saveBackups(backups);
-  }, 3000); // 防抖：停止操作3秒后才备份
+    try { saveBackups(backups); }
+    catch (e) {
+      // localStorage 存不下时保留最近 3 份
+      backups.length = 3;
+      try { saveBackups(backups); } catch {}
+      console.warn('备份容量超限，已保留最近 3 份');
+    }
+  }, 3000);
 }
 
 function restoreFromBackup(id) {
@@ -1891,11 +1897,25 @@ function exportData() {
     budget: getBudget(),
     chatMessages: getChatMessages()
   };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const json = JSON.stringify(data, null, 2);
+  const filename = `记账备份_${new Date().toISOString().split('T')[0]}.json`;
+
+  // 优先用 Web Share API（移动端 PWA 最可靠）
+  if (navigator.share && navigator.canShare) {
+    const file = new File([json], filename, { type: 'application/json' });
+    if (navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: '记账备份' }).catch(() => {});
+      toast('数据已导出');
+      return;
+    }
+  }
+
+  // 回退：下载链接（桌面浏览器）
+  const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `记账备份_${new Date().toISOString().split('T')[0]}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
