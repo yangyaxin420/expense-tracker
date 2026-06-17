@@ -1,0 +1,519 @@
+{
+  "version": 2,
+  "exportedAt": "2026-06-17T13:27:18.823Z",
+  "records": [
+    {
+      "id": 1750000000000,
+      "type": "expense",
+      "amount": 0.5,
+      "category": "其他",
+      "item": "打印",
+      "date": "2026-06-07",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000001,
+      "type": "expense",
+      "amount": 15,
+      "category": "零食",
+      "item": "巴斯克",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000002,
+      "type": "expense",
+      "amount": 10.5,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000003,
+      "type": "expense",
+      "amount": 3.5,
+      "category": "日用",
+      "item": "宿舍订水",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000004,
+      "type": "expense",
+      "amount": 11,
+      "category": "零食",
+      "item": "酸奶",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000005,
+      "type": "expense",
+      "amount": 1,
+      "category": "其他",
+      "item": "打印",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000006,
+      "type": "expense",
+      "amount": 5,
+      "category": "其他",
+      "item": "买资料",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000007,
+      "type": "expense",
+      "amount": 10,
+      "category": "其他",
+      "item": "充AI",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000008,
+      "type": "expense",
+      "amount": 3,
+      "category": "零食",
+      "item": "烤肠",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000009,
+      "type": "expense",
+      "amount": 8,
+      "category": "零食",
+      "item": "炸鸡",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000010,
+      "type": "expense",
+      "amount": 10,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-08",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000011,
+      "type": "expense",
+      "amount": 16.5,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-09",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000012,
+      "type": "expense",
+      "amount": 19.5,
+      "category": "零食",
+      "item": "披萨",
+      "date": "2026-06-09",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000013,
+      "type": "expense",
+      "amount": 25.5,
+      "category": "餐饮",
+      "item": "午晚饭",
+      "date": "2026-06-09",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000014,
+      "type": "expense",
+      "amount": 50,
+      "category": "餐饮",
+      "item": "充饭卡",
+      "date": "2026-06-09",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000015,
+      "type": "expense",
+      "amount": 5,
+      "category": "日用",
+      "item": "洗衣服",
+      "date": "2026-06-10",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000016,
+      "type": "expense",
+      "amount": 5,
+      "category": "零食",
+      "item": "炸鸡",
+      "date": "2026-06-10",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000017,
+      "type": "expense",
+      "amount": 10.5,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000018,
+      "type": "expense",
+      "amount": 10,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000019,
+      "type": "expense",
+      "amount": 3,
+      "category": "零食",
+      "item": "烤肠",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000020,
+      "type": "expense",
+      "amount": 25.5,
+      "category": "餐饮",
+      "item": "肯德基",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000021,
+      "type": "expense",
+      "amount": 13,
+      "category": "零食",
+      "item": "麻糍",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000022,
+      "type": "expense",
+      "amount": 5,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000023,
+      "type": "expense",
+      "amount": 1,
+      "category": "其他",
+      "item": "打印",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000024,
+      "type": "income",
+      "amount": 30,
+      "category": "其他收入",
+      "item": "赚了",
+      "date": "2026-06-11",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000025,
+      "type": "expense",
+      "amount": 3.5,
+      "category": "日用",
+      "item": "宿舍订水",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000026,
+      "type": "expense",
+      "amount": 7,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000027,
+      "type": "expense",
+      "amount": 4.5,
+      "category": "零食",
+      "item": "饮料",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000028,
+      "type": "expense",
+      "amount": 13,
+      "category": "零食",
+      "item": "麻糍",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000029,
+      "type": "expense",
+      "amount": 1,
+      "category": "其他",
+      "item": "代取",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000030,
+      "type": "expense",
+      "amount": 2.1,
+      "category": "其他",
+      "item": "打印",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000031,
+      "type": "expense",
+      "amount": 4,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-12",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000032,
+      "type": "expense",
+      "amount": 15,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-13",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000033,
+      "type": "expense",
+      "amount": 5,
+      "category": "零食",
+      "item": "饮料",
+      "date": "2026-06-13",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000034,
+      "type": "expense",
+      "amount": 27,
+      "category": "零食",
+      "item": "千层",
+      "date": "2026-06-13",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000035,
+      "type": "expense",
+      "amount": 13,
+      "category": "零食",
+      "item": "炸鸡",
+      "date": "2026-06-13",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000036,
+      "type": "expense",
+      "amount": 15,
+      "category": "零食",
+      "item": "零食",
+      "date": "2026-06-13",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000037,
+      "type": "expense",
+      "amount": 4,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-13",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000038,
+      "type": "expense",
+      "amount": 1.5,
+      "category": "其他",
+      "item": "代取",
+      "date": "2026-06-14",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000039,
+      "type": "expense",
+      "amount": 15.3,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-14",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000040,
+      "type": "expense",
+      "amount": 30,
+      "category": "购物",
+      "item": "睡衣",
+      "date": "2026-06-14",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000041,
+      "type": "expense",
+      "amount": 15,
+      "category": "其他",
+      "item": "补卡",
+      "date": "2026-06-14",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000042,
+      "type": "expense",
+      "amount": 17,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-15",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000043,
+      "type": "expense",
+      "amount": 12,
+      "category": "零食",
+      "item": "酸奶",
+      "date": "2026-06-15",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000044,
+      "type": "expense",
+      "amount": 15,
+      "category": "零食",
+      "item": "巴斯克",
+      "date": "2026-06-15",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000045,
+      "type": "expense",
+      "amount": 3,
+      "category": "日用",
+      "item": "洗澡",
+      "date": "2026-06-15",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000046,
+      "type": "expense",
+      "amount": 13,
+      "category": "餐饮",
+      "item": "午饭",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000047,
+      "type": "expense",
+      "amount": 3.5,
+      "category": "日用",
+      "item": "宿舍订水",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000048,
+      "type": "expense",
+      "amount": 8,
+      "category": "零食",
+      "item": "炸鸡",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000049,
+      "type": "expense",
+      "amount": 18,
+      "category": "餐饮",
+      "item": "晚饭",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000050,
+      "type": "expense",
+      "amount": 3.5,
+      "category": "零食",
+      "item": "零食",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000051,
+      "type": "expense",
+      "amount": 8.6,
+      "category": "水果",
+      "item": "水果",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000052,
+      "type": "income",
+      "amount": 4,
+      "category": "其他收入",
+      "item": "赚了",
+      "date": "2026-06-16",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000053,
+      "type": "expense",
+      "amount": 13,
+      "category": "零食",
+      "item": "酸奶",
+      "date": "2026-06-17",
+      "time": "12:00"
+    },
+    {
+      "id": 1750000000054,
+      "type": "expense",
+      "amount": 16,
+      "category": "餐饮",
+      "item": "晚饭",
+      "date": "2026-06-17",
+      "time": "12:00"
+    }
+  ],
+  "categories": [
+    "餐饮",
+    "购物",
+    "交通",
+    "娱乐",
+    "日用",
+    "零食",
+    "水果",
+    "其他",
+    "工资",
+    "红包",
+    "兼职",
+    "生活费",
+    "报销",
+    "其他收入"
+  ],
+  "budget": 0,
+  "chatMessages": []
+}
