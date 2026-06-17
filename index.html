@@ -1931,27 +1931,45 @@ function exportData() {
   const json = JSON.stringify(data, null, 2);
   const filename = `记账备份_${new Date().toISOString().split('T')[0]}.json`;
 
-  // 优先用 Web Share API（移动端 PWA 最可靠）
-  if (navigator.share && navigator.canShare) {
+  // 方案1: Web Share API（移动端最可靠）
+  if (navigator.share) {
     const file = new File([json], filename, { type: 'application/json' });
-    if (navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: '记账备份' }).catch(() => {});
-      toast('数据已导出');
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: '记账备份' })
+        .then(() => toast('✅ 数据已导出'))
+        .catch(() => {}); // 用户取消分享不提示
       return;
     }
   }
 
-  // 回退：下载链接（桌面浏览器）
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('数据已导出');
+  // 方案2: 复制到剪贴板 + 显示内容（100% 可靠）
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'display:flex;';
+  overlay.innerHTML = `
+    <div class="modal-sheet" style="max-height:80vh;display:flex;flex-direction:column;">
+      <h3 style="margin-bottom:4px;">导出数据</h3>
+      <p style="font-size:12px;color:var(--sub);margin-bottom:8px;">复制下方全部内容，保存为 .json 文件</p>
+      <textarea style="flex:1;width:100%;min-height:200px;font-size:11px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px;resize:none;" readonly>${json.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button id="export-copy-btn" style="flex:1;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;">复制全部</button>
+        <button id="export-close-btn" style="flex:1;padding:10px;background:#f0f0f0;color:var(--text);border:none;border-radius:8px;font-size:14px;">关闭</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#export-copy-btn').addEventListener('click', () => {
+    navigator.clipboard.writeText(json).then(() => {
+      toast('✅ 已复制，请粘贴到文件中保存');
+    }).catch(() => {
+      // 如果剪贴板不行，让用户手动选
+      const ta = overlay.querySelector('textarea');
+      ta.select(); ta.setSelectionRange(0, json.length);
+      toast('请手动复制');
+    });
+  });
+  overlay.querySelector('#export-close-btn').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 function importData(file) {
